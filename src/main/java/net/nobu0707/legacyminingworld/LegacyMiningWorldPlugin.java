@@ -16,7 +16,8 @@ public final class LegacyMiningWorldPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        getLogger().info(identity() + " enabled; Phase 1 basic terrain generator is available.");
+        getLogger().info(identity()
+                + " enabled; basic terrain and legacy geology population are available.");
     }
 
     @Override
@@ -26,14 +27,15 @@ public final class LegacyMiningWorldPlugin extends JavaPlugin {
 
     @Override
     public ChunkGenerator getDefaultWorldGenerator(String worldName, String id) {
-        String normalizedId = normalizeSupportedId(id);
-        if (normalizedId == null) {
+        LegacyMiningChunkGenerator generator = generatorForSupportedId(id);
+        if (generator == null) {
             getLogger().warning("Unsupported generator id '" + id + "' for world '" + worldName + "'.");
             return null;
         }
+        String normalizedId = normalizeSupportedId(id);
         getLogger().info("Generator requested for world '" + worldName + "' with id '"
                 + normalizedId + "'.");
-        return GENERATOR;
+        return generator;
     }
 
     @Override
@@ -52,6 +54,10 @@ public final class LegacyMiningWorldPlugin extends JavaPlugin {
         }
         String normalized = id.trim().toLowerCase(Locale.ROOT);
         return normalized.equals("default") ? normalized : null;
+    }
+
+    static LegacyMiningChunkGenerator generatorForSupportedId(String id) {
+        return normalizeSupportedId(id) == null ? null : GENERATOR;
     }
 
     private String identity() {

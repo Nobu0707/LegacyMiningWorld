@@ -21,5 +21,6 @@ public enum LegacyBlockKind {
     DIAMOND_ORE,
     LAPIS_ORE,
     EMERALD_ORE,
-    COPPER_ORE
+    COPPER_ORE,
+    OTHER
 }

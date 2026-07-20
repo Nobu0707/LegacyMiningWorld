@@ -9,8 +9,10 @@ readonly REQUIRED_REVIEW_CHECKS=(
   git-diff-check.txt
   gradle-test.txt
   geology-engine-tests.txt
+  geology-adapter-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
+  geology-world-smoke.txt
   release-artifacts.txt
   jar-plugin-yml.txt
   jar-contents.txt
@@ -173,7 +175,7 @@ done < <(git ls-files -m -d -o --exclude-standard -z)
     rg -n --hidden \
       --glob '!.git/**' --glob '!build/**' --glob '!.gradle/**' --glob '!server/**' \
       --glob '!*.jar' --glob '!*.log' --glob '!*.tar.gz' --glob '!*.zip' \
-      -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|LegacyGeology|LegacyVein|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|Multiverse' \
+      -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|Multiverse' \
       . || true
   else
     printf 'rg not available; review signal scan skipped.\n'

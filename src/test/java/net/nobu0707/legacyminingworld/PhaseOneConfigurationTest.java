@@ -3,6 +3,7 @@ package net.nobu0707.legacyminingworld;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 
 class PhaseOneConfigurationTest {
     @Test
@@ -23,6 +25,18 @@ class PhaseOneConfigurationTest {
     }
 
     @Test
+    @Tag("geology-adapter")
+    void reusesTheSameGeneratorForAbsentAndDefaultIds() {
+        assertSame(
+                LegacyMiningWorldPlugin.generatorForSupportedId(null),
+                LegacyMiningWorldPlugin.generatorForSupportedId("default"));
+        assertSame(
+                LegacyMiningWorldPlugin.generatorForSupportedId(""),
+                LegacyMiningWorldPlugin.generatorForSupportedId(" DEFAULT "));
+        assertNull(LegacyMiningWorldPlugin.generatorForSupportedId("legacy"));
+    }
+
+    @Test
     void mainClassIsAPaperPlugin() {
         assertTrue(JavaPlugin.class.isAssignableFrom(LegacyMiningWorldPlugin.class));
     }
@@ -31,7 +45,7 @@ class PhaseOneConfigurationTest {
     void versionPropertyIsPresent() {
         String version = System.getProperty("legacyminingworld.version", "");
         assertFalse(version.isBlank());
-        assertTrue(version.equals("0.3.0-alpha.1"));
+        assertTrue(version.equals("0.3.0"));
     }
 
     @Test

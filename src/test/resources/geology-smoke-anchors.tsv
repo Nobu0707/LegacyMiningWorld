@@ -1,0 +1,13 @@
+# LegacyMiningWorld Phase 2B fixed geology anchors
+# seed=11652021; UTF-8; tab-separated; comments begin with '#'
+id	x	y	z	expected_material	purpose	pair_id	source_chunk_x	source_chunk_z	feature	attempt	vein_sequence
+DIRT_1	-2	34	-1	DIRT	material	-	-1	-1	DIRT	0	23
+DIRT_2	-2	34	0	DIRT	material	-	-1	-1	DIRT	0	24
+GRAVEL_X_WEST	-1	65	-12	GRAVEL	x_boundary	X_GRAVEL	-1	-1	GRAVEL	3	28
+GRAVEL_X_EAST	0	66	-12	GRAVEL	x_boundary	X_GRAVEL	-1	-1	GRAVEL	3	10
+GRANITE_Z_NORTH	-11	19	-1	GRANITE	z_boundary	Z_GRANITE	-1	-1	GRANITE	6	4
+GRANITE_Z_SOUTH	-11	19	0	GRANITE	z_boundary	Z_GRANITE	-1	-1	GRANITE	6	5
+DIORITE_1	-16	15	-13	DIORITE	material	-	-1	-1	DIORITE	5	103
+DIORITE_2	-16	16	-13	DIORITE	material	-	-1	-1	DIORITE	5	104
+ANDESITE_1	-10	5	-1	ANDESITE	material	-	-1	-1	ANDESITE	3	48
+ANDESITE_2	-10	5	0	ANDESITE	material	-	-1	-1	ANDESITE	3	24

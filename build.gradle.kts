@@ -48,9 +48,27 @@ tasks.register<Test>("geologyEngineTest") {
     group = "verification"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("geology-adapter")
+    }
     filter {
         includeTestsMatching("net.nobu0707.legacyminingworld.geology.*")
+    }
+    systemProperty("legacyminingworld.version", project.version.toString())
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Test>("geologyAdapterTest") {
+    description = "Runs the Phase 2B Paper adapter and in-memory world review suite."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("geology-adapter")
     }
     systemProperty("legacyminingworld.version", project.version.toString())
     outputs.upToDateWhen { false }

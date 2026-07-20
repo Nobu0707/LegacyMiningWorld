@@ -1,16 +1,21 @@
 package net.nobu0707.legacyminingworld;
 
+import java.util.List;
 import java.util.Random;
+import net.nobu0707.legacyminingworld.geology.LegacyGeologyPopulator;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.generator.BiomeProvider;
+import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.generator.WorldInfo;
 
 final class LegacyMiningChunkGenerator extends ChunkGenerator {
     private static final int CHUNK_SIZE = 16;
+    private static final List<BlockPopulator> DEFAULT_POPULATORS =
+            List.of(new LegacyGeologyPopulator());
 
     @Override
     public void generateNoise(
@@ -81,6 +86,11 @@ final class LegacyMiningChunkGenerator extends ChunkGenerator {
     @Override
     public Location getFixedSpawnLocation(World world, Random random) {
         return new Location(world, 0.5, LegacyTerrainProfile.SURFACE_Y + 1.0, 0.5);
+    }
+
+    @Override
+    public List<BlockPopulator> getDefaultPopulators(World world) {
+        return DEFAULT_POPULATORS;
     }
 
     @Override
