@@ -23,11 +23,23 @@
 
 Paper 26.1.2の`Biome`定数はregistry-backedであり、サーバー外の素のJUnit VMではregistry bootstrapなしに値へアクセスできない。そのためproviderの型・不変性は単体テスト、実際のPLAINS戻り値は必須Paperスモークで検証する。
 
-## 設計候補
+## Phase 2Aで確定した実装
 
-- `BlockPopulator`と`LimitedRegion`を使う地中岩石生成はPhase 2でAPI適合性と決定性を検証する。
+- Phase 2は、複雑な形状・seed・境界処理をPaper書き込みから独立して検証するため2A/2Bへ分割した。2Aは純粋engine、2BはPaper adapterと実機配置を担当する。
+- Mojang公式1.16.5 server JARと公式mappingを根拠とし、DIRT/GRAVELはsize 33、attempt 10/8、origin Y=0以上256未満、GRANITE/DIORITE/ANDESITEはsize 33、attempt各10、origin Y=0以上80未満とする。追加順もこの順とする。
+- 乱数は1.16.5と同じ系列の`java.util.Random`を使う。world seedとsource chunk block原点から公式decoration seed式を再現し、`UNDERGROUND_ORES` step 6と明示的なstable feature salt 0～4でfeature seedを作る。enum ordinal、hashCode、時刻、thread IDへ依存しない。
+- `OreFeature`型の楕円体補間、旧式sine table相当、包含関係除去、bounding box、block中心判定、BitSet重複抑制を再実装する。単純球、random walk、noiseへ置き換えない。
+- target chunkだけが自範囲のplacementを所有する。source chunkは絶対Z昇順、X昇順、feature、attempt、vein内部の順で再構築し、隣chunkへ直接書かない。
+- size 33の理論上の最大水平到達距離は6.6875未満のため、source neighborhoodはX/Z各±1の3×3とする。
+- replacement targetは公式`base_stone_overworld`と同じ`STONE`、`GRANITE`、`DIORITE`、`ANDESITE`のみとする。DIRT/GRAVEL、BEDROCK、AIR、地表、液体、鉱石、DEEPSLATEは置換しない。
+- plannerとgeneratorは共有可変状態を持たず、Randomを呼び出し内だけに閉じ込める。chunk cacheや全world placement保存は採用しない。immutable設定は全threadで共有できる。
+- 同一plugin version・world seed・target chunkのplanは決定的だが、Vanilla heightmap事前判定、全biome decoration pipeline、地形や他featureを再現しないため、Minecraft 1.16.5の同一seedとのblock座標完全一致は保証しない。
+- Phase 2Aでは既存Paper runtime behaviorを変えない。`BlockPopulator`を登録せず、`LimitedRegion`を参照せず、Multiverse-Coreへ依存しない。
 
-## 未決事項
+詳細な一次資料と式は`docs/vanilla-1.16.5-geology.md`に記録する。
 
-- 地中岩石と各鉱石の正確な試行回数、サイズ、高度選択、鉱脈形状。
-- Phase 2以降のChunk境界をまたぐ生成に使うseed導出と置換規則。
+## 後続で確定する事項
+
+- Phase 2B: `BlockPopulator`/`LimitedRegion` adapter、Material対応、実ワールド分布と境界の実機検証。
+- Phase 3: 各鉱石の正確な設定と実ワールド配置。Phase 2Aへ鉱石featureを前倒ししない。
+- Phase 4: Multiverse-Core統合、大量chunk走査、性能・決定性、release candidate。

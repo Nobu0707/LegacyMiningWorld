@@ -43,6 +43,23 @@ tasks.test {
     systemProperty("legacyminingworld.version", project.version.toString())
 }
 
+tasks.register<Test>("geologyEngineTest") {
+    description = "Runs the Phase 2A pure geology engine review suite."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching("net.nobu0707.legacyminingworld.geology.*")
+    }
+    systemProperty("legacyminingworld.version", project.version.toString())
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
 tasks.jar {
     archiveBaseName = "LegacyMiningWorld"
     archiveVersion = project.version.toString()

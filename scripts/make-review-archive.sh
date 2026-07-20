@@ -5,6 +5,17 @@ readonly PROJECT_NAME="legacyminingworld"
 readonly PROJECT_DISPLAY_NAME="LegacyMiningWorld"
 readonly EMPTY_TREE_SHA="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 readonly REQUIRED_VERSION_CHECK="build/review-checks/jar-plugin-yml.txt"
+readonly REQUIRED_REVIEW_CHECKS=(
+  git-diff-check.txt
+  gradle-test.txt
+  geology-engine-tests.txt
+  gradle-build.txt
+  local-paper-smoke.txt
+  release-artifacts.txt
+  jar-plugin-yml.txt
+  jar-contents.txt
+  verify-built-jar-version.txt
+)
 
 usage() {
   cat <<'USAGE'
@@ -35,7 +46,7 @@ is_excluded_path() {
     gradle/wrapper/gradle-wrapper.jar)
       return 1
       ;;
-    .git/*|.gradle/*|build/*|server/*|out/*|.idea/*|.vscode/*|*.jar|*.class|*.log|*.tar.gz|*.zip|*.db|*.sqlite|*.tmp|.env|.env.*|secrets/*|secret/*|private/*|*credential*|*secret*|*password*|*.key|*.pem)
+    .git/*|.gradle/*|build/*|server/*|out/*|.idea/*|.vscode/*|*.jar|*.class|*.log|*.tar.gz|*.zip|*.db|*.sqlite|*.tmp|*minecraft-1.16.5*|*server-mappings*|*decompile*|*decompiled*|.env|.env.*|secrets/*|secret/*|private/*|*credential*|*secret*|*password*|*.key|*.pem)
       return 0
       ;;
     *)
@@ -65,6 +76,9 @@ fi
 version="$(expected_version)"
 [ -n "$version" ] || die "legacyminingworld_version is not set"
 [ -f "$REQUIRED_VERSION_CHECK" ] || die "missing required check log: $REQUIRED_VERSION_CHECK"
+for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
+  [ -f "build/review-checks/$check_name" ] || die "missing review check log: $check_name"
+done
 grep -Fxq "version: $version" "$REQUIRED_VERSION_CHECK" \
   || die "$REQUIRED_VERSION_CHECK does not contain version: $version"
 
@@ -159,7 +173,7 @@ done < <(git ls-files -m -d -o --exclude-standard -z)
     rg -n --hidden \
       --glob '!.git/**' --glob '!build/**' --glob '!.gradle/**' --glob '!server/**' \
       --glob '!*.jar' --glob '!*.log' --glob '!*.tar.gz' --glob '!*.zip' \
-      -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Random|seed|Multiverse' \
+      -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|LegacyGeology|LegacyVein|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|Multiverse' \
       . || true
   else
     printf 'rg not available; review signal scan skipped.\n'

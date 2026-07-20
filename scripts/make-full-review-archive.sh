@@ -6,6 +6,7 @@ readonly PROJECT_DISPLAY_NAME="LegacyMiningWorld"
 readonly REQUIRED_REVIEW_CHECKS=(
   git-diff-check.txt
   gradle-test.txt
+  geology-engine-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   release-artifacts.txt
@@ -35,7 +36,7 @@ is_forbidden_repo_path() {
     gradle/wrapper/gradle-wrapper.jar)
       return 1
       ;;
-    .git/*|.gradle/*|build/*|server/*|out/*|.idea/*|.vscode/*|*.jar|*.class|*.log|*.tar.gz|*.zip|*.db|*.sqlite|*.tmp|.env|.env.*|secrets/*|secret/*|private/*|*credential*|*secret*|*password*|*.key|*.pem)
+    .git/*|.gradle/*|build/*|server/*|out/*|.idea/*|.vscode/*|*.jar|*.class|*.log|*.tar.gz|*.zip|*.db|*.sqlite|*.tmp|*minecraft-1.16.5*|*server-mappings*|*decompile*|*decompiled*|.env|.env.*|secrets/*|secret/*|private/*|*credential*|*secret*|*password*|*.key|*.pem)
       return 0
       ;;
     *)
@@ -131,7 +132,7 @@ done < <(find build/review-checks -maxdepth 1 -type f -name '*.txt' -print0 | so
 
 if command -v rg >/dev/null 2>&1; then
   rg -n \
-    -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Random|seed|Multiverse' \
+    -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|LegacyGeology|LegacyVein|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|Multiverse' \
     "$archive_stage/repo" > "$archive_stage/checks/rg-review-signals.txt" || true
   rg -n -i \
     -e 'TODO|FIXME|HACK|XXX|SNAPSHOT|password|token|secret|credential' \

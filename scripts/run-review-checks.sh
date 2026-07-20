@@ -6,6 +6,17 @@ readonly EULA_FILE="server/eula.txt"
 readonly CHECK_DIR="build/review-checks"
 readonly SMOKE_DIR="build/paper-smoke"
 readonly SMOKE_TIMEOUT_SECONDS=120
+readonly REQUIRED_REVIEW_CHECKS=(
+  git-diff-check.txt
+  gradle-test.txt
+  geology-engine-tests.txt
+  gradle-build.txt
+  local-paper-smoke.txt
+  release-artifacts.txt
+  jar-plugin-yml.txt
+  jar-contents.txt
+  verify-built-jar-version.txt
+)
 
 die() {
   printf 'error: %s\n' "$*" >&2
@@ -17,6 +28,8 @@ cd "$repo_root"
 
 expected_version="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n 1)"
 [ -n "$expected_version" ] || die "legacyminingworld_version is not set"
+
+rm -rf "$CHECK_DIR"
 
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/legacyminingworld-checks.XXXXXX")"
 paper_job=""
@@ -54,6 +67,26 @@ run_gradle_check() {
 }
 
 run_gradle_check gradle-test.txt clean test
+
+{
+  printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'java-version:\n'
+  java -version 2>&1
+  printf '\ngradle-version:\n'
+  ./gradlew --version
+  printf '\nplugin-version: %s\n' "$expected_version"
+  printf 'test-task: geologyEngineTest\n'
+  printf 'test-filter: net.nobu0707.legacyminingworld.geology.*\n\n'
+  ./gradlew --no-daemon geologyEngineTest
+  printf '\nPASS: Phase 2A geology engine tests completed successfully.\n'
+} > "$temp_dir/geology-engine-tests.txt" 2>&1 || {
+  mkdir -p "$CHECK_DIR"
+  cp "$temp_dir/geology-engine-tests.txt" "$CHECK_DIR/geology-engine-tests.txt"
+  cat "$temp_dir/geology-engine-tests.txt" >&2
+  die "Phase 2A geology engine tests failed"
+}
+copy_log geology-engine-tests.txt
+
 run_gradle_check gradle-build.txt build
 
 {
@@ -75,6 +108,21 @@ copy_log jar-contents.txt
 if grep -Eiq '(^|/)(server|logs?)/|\.tar\.gz$|\.zip$|(^|/)src/test/|(^|/)[^/]*Tests?[^/]*\.class$' \
     "$temp_dir/jar-contents.txt"; then
   die "release JAR contains a forbidden runtime, archive, log, or test path"
+fi
+
+if grep -Eiq 'minecraft-1\.16\.5|server-mappings|decompil' "$temp_dir/jar-contents.txt"; then
+  die "release JAR contains a Mojang research or decompile artifact"
+fi
+
+if rg -n \
+    -e '^import .*BlockPopulator' \
+    -e '^import .*LimitedRegion' \
+    -e 'getDefaultPopulators[[:space:]]*\(' \
+    src/main/java >/dev/null; then
+  die "Phase 2A must not register BlockPopulator or access LimitedRegion"
+fi
+if rg -n -i 'multiverse' build.gradle.kts gradle.properties src/main src/test >/dev/null; then
+  die "Phase 2A must not declare or use Multiverse-Core"
 fi
 
 unzip -p "$built_jar" plugin.yml > "$temp_dir/jar-plugin-yml.txt" \
@@ -257,5 +305,12 @@ fi
   printf 'PASS: no generator-selection, command, server, or class-loading failure was found.\n'
 } >> "$temp_dir/local-paper-smoke.txt"
 copy_log local-paper-smoke.txt
+
+for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
+  [ -f "$CHECK_DIR/$check_name" ] || die "missing required review check log: $check_name"
+done
+grep -Fq 'PASS: Phase 2A geology engine tests completed successfully.' \
+  "$CHECK_DIR/geology-engine-tests.txt" \
+  || die "geology engine review log does not contain its PASS marker"
 
 printf 'Review checks passed. Logs: %s\n' "$CHECK_DIR"
