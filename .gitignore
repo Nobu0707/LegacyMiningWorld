@@ -1,0 +1,11 @@
+.gradle/
+build/
+out/
+.idea/
+.vscode/
+server/
+*.log
+*.tar.gz
+*.zip
+legacyminingworld-review-latest.tar.gz
+legacyminingworld-full-review-latest.tar.gz

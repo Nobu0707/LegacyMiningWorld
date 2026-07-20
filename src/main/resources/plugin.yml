@@ -1,0 +1,7 @@
+name: LegacyMiningWorld
+version: ${version}
+main: net.nobu0707.legacyminingworld.LegacyMiningWorldPlugin
+api-version: '26.1.2'
+load: STARTUP
+author: nobu0707
+description: Java Edition 1.16.5-style mining world generator for Paper
