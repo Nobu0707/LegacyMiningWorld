@@ -1,0 +1,17 @@
+# LegacyMiningWorld Phase 3B fixed ore anchors
+# seed=11652021; UTF-8; tab-separated; comments begin with '#'
+id	x	y	z	expected_material	purpose	pair_id	source_chunk_x	source_chunk_z	feature	attempt	vein_sequence
+COAL_X_WEST	-1	22	3	COAL_ORE	x_boundary	X_COAL	-1	0	COAL	0	6
+COAL_X_EAST	0	22	3	COAL_ORE	x_boundary	X_COAL	-1	0	COAL	0	0
+COAL_Y11	-9	11	-10	COAL_ORE	y11	-	-1	-1	COAL	19	16
+IRON_Z_NORTH	0	34	-1	IRON_ORE	z_boundary	Z_IRON	0	0	IRON	7	2
+IRON_Z_SOUTH	1	34	0	IRON_ORE	z_boundary	Z_IRON	0	0	IRON	7	0
+IRON_Y11	8	11	0	IRON_ORE	y11	-	0	0	IRON	17	3
+GOLD_Y11_NEGATIVE	-9	11	14	GOLD_ORE	y11	-	-1	0	GOLD	1	0
+GOLD_Y11_POSITIVE	2	11	13	GOLD_ORE	y11	-	0	0	GOLD	1	0
+REDSTONE_Y11_NEGATIVE	-16	11	1	REDSTONE_ORE	y11	-	-1	0	REDSTONE	3	0
+REDSTONE_Y11_POSITIVE	13	11	1	REDSTONE_ORE	y11	-	0	0	REDSTONE	7	1
+DIAMOND_Y11_1	14	11	-4	DIAMOND_ORE	y11	-	0	-1	DIAMOND	0	0
+DIAMOND_Y11_2	13	11	-4	DIAMOND_ORE	y11	-	0	-1	DIAMOND	0	2
+LAPIS_1	-4	16	-10	LAPIS_ORE	material	-	-1	-1	LAPIS	0	0
+LAPIS_2	-4	17	-10	LAPIS_ORE	material	-	-1	-1	LAPIS	0	1

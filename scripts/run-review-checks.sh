@@ -3,7 +3,8 @@ set -euo pipefail
 
 readonly PAPER_JAR="server/paper-26.1.2-69.jar"
 readonly EULA_FILE="server/eula.txt"
-readonly ANCHOR_FILE="src/test/resources/geology-smoke-anchors.tsv"
+readonly GEOLOGY_ANCHOR_FILE="src/test/resources/geology-smoke-anchors.tsv"
+readonly ORE_ANCHOR_FILE="src/test/resources/ore-smoke-anchors.tsv"
 readonly CHECK_DIR="build/review-checks"
 readonly SMOKE_DIR="build/paper-smoke"
 readonly SMOKE_TIMEOUT_SECONDS=120
@@ -15,9 +16,11 @@ readonly REQUIRED_REVIEW_CHECKS=(
   geology-engine-tests.txt
   geology-adapter-tests.txt
   ore-engine-tests.txt
+  ore-adapter-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
+  ore-world-smoke.txt
   release-artifacts.txt
   jar-plugin-yml.txt
   jar-contents.txt
@@ -164,6 +167,40 @@ copy_log geology-adapter-tests.txt
 }
 copy_log ore-engine-tests.txt
 
+{
+  printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'java-version:\n'
+  java -version 2>&1
+  printf '\ngradle-version:\n'
+  ./gradlew --version
+  printf '\nplugin-version: %s\n' "$expected_version"
+  printf 'test-task: oreAdapterTest\n'
+  printf 'test-filter: JUnit tag ore-adapter\n'
+  printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
+  printf 'fixed-target-chunks: %s\n\n' "$FORCE_LOADED_CHUNKS"
+  ./gradlew --no-daemon oreAdapterTest
+  printf '\nmaterial-adapter: PASS\n'
+  printf 'replacement: PASS\n'
+  printf 'legacy-y-range: PASS 0..67\n'
+  printf 'target-region: PASS\n'
+  printf 'stable-overwrite: PASS first-wins\n'
+  printf 'combined-counts: COAL=867 IRON=443 GOLD=48 REDSTONE=106 DIAMOND=17 LAPIS=19\n'
+  printf 'combined-checksum: -7165395187979696007\n'
+  printf 'y11-counts: COAL=6 IRON=5 GOLD=8 REDSTONE=7 DIAMOND=4\n'
+  printf 'anchor-count: 14\n'
+  printf 'anchor-material-counts: COAL=3 IRON=3 GOLD=2 REDSTONE=2 DIAMOND=2 LAPIS=2\n'
+  printf 'x-boundary-pair: X_COAL PASS\n'
+  printf 'z-boundary-pair: Z_IRON PASS\n'
+  printf 'concurrency: PASS\n'
+  printf 'geology-golden-regression: PASS\n'
+  printf 'PASS: Phase 3B ore adapter tests completed successfully.\n'
+} > "$temp_dir/ore-adapter-tests.txt" 2>&1 || {
+  copy_log ore-adapter-tests.txt
+  cat "$temp_dir/ore-adapter-tests.txt" >&2
+  die "Phase 3B ore adapter tests failed"
+}
+copy_log ore-adapter-tests.txt
+
 run_gradle_check gradle-build.txt build
 copy_log git-diff-check.txt
 
@@ -180,15 +217,18 @@ if grep -Eiq '(^|/)(server|logs?)/|\.tar\.gz$|\.zip$|(^|/)src/test/|(^|/)[^/]*Te
     "$temp_dir/jar-contents.txt"; then
   die "release JAR contains a forbidden runtime, archive, log, or test path"
 fi
-if grep -Eiq 'minecraft-1\.16\.5|server-mappings|decompil|geology-smoke-anchors|multiverse' \
+if grep -Eiq 'minecraft-1\.16\.5|server-mappings|decompil|geology-smoke-anchors|ore-smoke-anchors|multiverse' \
     "$temp_dir/jar-contents.txt"; then
   die "release JAR contains a research, test-anchor, or Multiverse artifact"
 fi
 for required_class in \
-  'net/nobu0707/legacyminingworld/geology/LegacyGeologyPopulator.class' \
+  'net/nobu0707/legacyminingworld/geology/LegacyUndergroundPopulator.class' \
   'net/nobu0707/legacyminingworld/geology/LegacyGeologyMaterialAdapter.class' \
   'net/nobu0707/legacyminingworld/geology/LegacyGeologyApplicator.class' \
-  'net/nobu0707/legacyminingworld/geology/LimitedRegionGeologyBlockAccess.class' \
+  'net/nobu0707/legacyminingworld/geology/LimitedRegionUndergroundBlockAccess.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOreMaterialAdapter.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOreBlockAccess.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOreApplicator.class' \
   'net/nobu0707/legacyminingworld/ore/LegacyOrePlanner.class' \
   'net/nobu0707/legacyminingworld/ore/LegacyOreFeature.class' \
   'net/nobu0707/legacyminingworld/ore/LegacyOreMaterial.class' \
@@ -198,6 +238,10 @@ for required_class in \
   grep -Fxq "$required_class" "$temp_dir/jar-contents.txt" \
     || die "release JAR is missing production class: $required_class"
 done
+if grep -Fxq 'net/nobu0707/legacyminingworld/geology/LegacyGeologyPopulator.class' \
+    "$temp_dir/jar-contents.txt"; then
+  die "release JAR contains the removed standalone geology populator"
+fi
 if grep -E '\.class$' "$temp_dir/jar-contents.txt" \
     | grep -Ev '^net/nobu0707/legacyminingworld/' >/dev/null; then
   die "release JAR contains an external runtime library class"
@@ -214,30 +258,23 @@ if rg -n \
     -e '\.getChunkAt[[:space:]]*\(' \
     -e '\.getBlockAt[[:space:]]*\(' \
     -e 'getPopulators[[:space:]]*\([^)]*\)[[:space:]]*\.add' \
-    -e 'WorldInitEvent|ThreadLocal|BukkitScheduler|getScheduler[[:space:]]*\(|runTask|runAsync' \
+    -e 'WorldInitEvent|ThreadLocal|BukkitScheduler|getScheduler[[:space:]]*\(|runTask|runAsync|parallelStream' \
+    -e 'Material\.matchMaterial|Class\.forName|java\.lang\.reflect|org\.bukkit\.craftbukkit|net\.minecraft' \
     src/main/java >/dev/null; then
   die "production source uses a forbidden world, chunk, scheduler, or retained-state API"
 fi
 if rg -n -i 'multiverse' build.gradle.kts gradle.properties src/main >/dev/null; then
-  die "Phase 3A must not declare or use Multiverse-Core"
+  die "Phase 3B must not declare or use Multiverse-Core"
 fi
 if rg -n \
-    -e 'org\.bukkit' \
-    -e 'BlockPopulator' \
-    -e 'LimitedRegion' \
-    src/main/java/net/nobu0707/legacyminingworld/ore >/dev/null; then
-  die "Phase 3A pure ore package is connected to a Paper/Bukkit runtime API"
-fi
-if rg -n \
-    -g '!**/ore/**' \
-    -e 'LegacyOre' \
-    -e 'legacyminingworld\.ore' \
+    -e 'static[[:space:]]+Random[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*(=|;)' \
+    -e 'static[[:space:]]+(List|Map|Set|Collection)[[:space:]]*<[^;]+[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*(=|;)' \
     src/main/java >/dev/null; then
-  die "Phase 3A ore engine is connected outside its pure production package"
+  die "production source contains a mutable static Random or collection declaration"
 fi
-grep -Fq 'List.of(new LegacyGeologyPopulator())' \
+grep -Fq 'List.of(new LegacyUndergroundPopulator())' \
   src/main/java/net/nobu0707/legacyminingworld/LegacyMiningChunkGenerator.java \
-  || die "getDefaultPopulators no longer registers the single Phase 2B geology populator"
+  || die "getDefaultPopulators does not register the single integrated underground populator"
 
 unzip -p "$built_jar" plugin.yml > "$temp_dir/jar-plugin-yml.txt" \
   || die "plugin.yml is missing from the release JAR"
@@ -269,7 +306,8 @@ copy_log release-artifacts.txt
 
 [ -r "$PAPER_JAR" ] || die "missing local Paper JAR: $PAPER_JAR"
 [ -r "$EULA_FILE" ] || die "missing local EULA file: $EULA_FILE"
-[ -r "$ANCHOR_FILE" ] || die "missing fixed geology anchors: $ANCHOR_FILE"
+[ -r "$GEOLOGY_ANCHOR_FILE" ] || die "missing fixed geology anchors: $GEOLOGY_ANCHOR_FILE"
+[ -r "$ORE_ANCHOR_FILE" ] || die "missing fixed ore anchors: $ORE_ANCHOR_FILE"
 grep -Eq '^eula=true[[:space:]]*$' "$EULA_FILE" || die "$EULA_FILE must contain eula=true"
 command -v timeout >/dev/null 2>&1 || die "timeout command is required for the Paper smoke test"
 paper_source_sha="$(sha256sum "$PAPER_JAR" | awk '{print $1}')"
@@ -292,7 +330,7 @@ while IFS=$'\t' read -r id x y z expected_material purpose pair_id \
   anchor_material_counts["$expected_material"]=$(( ${anchor_material_counts["$expected_material"]:-0} + 1 ))
   [ "$purpose" != "x_boundary" ] || x_boundary_anchors=$((x_boundary_anchors + 1))
   [ "$purpose" != "z_boundary" ] || z_boundary_anchors=$((z_boundary_anchors + 1))
-done < "$ANCHOR_FILE"
+done < "$GEOLOGY_ANCHOR_FILE"
 
 [ "${#geo_markers[@]}" -ge 10 ] || die "expected at least ten geology anchors"
 for material in DIRT GRAVEL GRANITE DIORITE ANDESITE; do
@@ -301,6 +339,61 @@ for material in DIRT GRAVEL GRANITE DIORITE ANDESITE; do
 done
 [ "$x_boundary_anchors" -eq 2 ] || die "expected one two-anchor X boundary pair"
 [ "$z_boundary_anchors" -eq 2 ] || die "expected one two-anchor Z boundary pair"
+
+ore_commands=()
+ore_markers=()
+y11_commands=()
+y11_markers=()
+extra_ore_commands=()
+extra_ore_markers=()
+declare -A ore_anchor_material_counts=()
+declare -A y11_material_seen=()
+x_ore_boundary_anchors=0
+z_ore_boundary_anchors=0
+negative_ore_anchor_seen=0
+positive_ore_anchor_seen=0
+while IFS=$'\t' read -r id x y z expected_material purpose pair_id \
+    source_chunk_x source_chunk_z feature attempt vein_sequence; do
+  [ -n "$id" ] || continue
+  [[ "$id" == \#* ]] && continue
+  [ "$id" = "id" ] && continue
+  [[ "$id" =~ ^[A-Z0-9_]+$ ]] || die "invalid ore anchor id: $id"
+  expected_lower="$(printf '%s' "$expected_material" | tr '[:upper:]' '[:lower:]')"
+  ore_commands+=("execute if block $x $y $z minecraft:$expected_lower run say LMW_ORE_$id")
+  ore_markers+=("LMW_ORE_$id")
+  ore_anchor_material_counts["$expected_material"]=$(( ${ore_anchor_material_counts["$expected_material"]:-0} + 1 ))
+  [ "$pair_id" != "X_COAL" ] || x_ore_boundary_anchors=$((x_ore_boundary_anchors + 1))
+  [ "$pair_id" != "Z_IRON" ] || z_ore_boundary_anchors=$((z_ore_boundary_anchors + 1))
+  if [ "$y" -eq 11 ] && [ -z "${y11_material_seen[$expected_material]:-}" ]; then
+    y11_commands+=("execute if block $x $y $z minecraft:$expected_lower run say LMW_ORE_Y11_${expected_material%_ORE}")
+    y11_markers+=("LMW_ORE_Y11_${expected_material%_ORE}")
+    y11_material_seen["$expected_material"]=1
+  fi
+  if { [ "$x" -lt 0 ] || [ "$z" -lt 0 ]; } && [ "$negative_ore_anchor_seen" -eq 0 ]; then
+    extra_ore_commands+=("execute if block $x $y $z minecraft:$expected_lower run say LMW_ORE_NEGATIVE_CHUNK")
+    extra_ore_markers+=("LMW_ORE_NEGATIVE_CHUNK")
+    negative_ore_anchor_seen=1
+  fi
+  if [ "$x" -ge 0 ] && [ "$z" -ge 0 ] && [ "$positive_ore_anchor_seen" -eq 0 ]; then
+    extra_ore_commands+=("execute if block $x $y $z minecraft:$expected_lower run say LMW_ORE_POSITIVE_CHUNK")
+    extra_ore_markers+=("LMW_ORE_POSITIVE_CHUNK")
+    positive_ore_anchor_seen=1
+  fi
+done < "$ORE_ANCHOR_FILE"
+
+[ "${#ore_markers[@]}" -eq 14 ] || die "expected exactly fourteen ore anchors"
+for material in COAL_ORE IRON_ORE GOLD_ORE REDSTONE_ORE DIAMOND_ORE LAPIS_ORE; do
+  [ "${ore_anchor_material_counts[$material]:-0}" -ge 2 ] \
+    || die "expected at least two anchors for $material"
+done
+for material in COAL_ORE IRON_ORE GOLD_ORE REDSTONE_ORE DIAMOND_ORE; do
+  [ "${y11_material_seen[$material]:-0}" -eq 1 ] \
+    || die "expected a Y=11 anchor for $material"
+done
+[ "$x_ore_boundary_anchors" -eq 2 ] || die "expected one two-anchor ore X boundary pair"
+[ "$z_ore_boundary_anchors" -eq 2 ] || die "expected one two-anchor ore Z boundary pair"
+[ "$negative_ore_anchor_seen" -eq 1 ] || die "expected an ore anchor in a negative chunk"
+[ "$positive_ore_anchor_seen" -eq 1 ] || die "expected an ore anchor in a non-negative chunk"
 
 rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR/plugins"
@@ -321,7 +414,7 @@ level-name=legacy_mining_smoke
 level-seed=${FIXED_WORLD_SEED}
 allow-nether=false
 max-players=1
-motd=LegacyMiningWorld Phase 2B geology smoke
+motd=LegacyMiningWorld Phase 3B underground smoke
 spawn-protection=0
 view-distance=2
 simulation-distance=2
@@ -385,6 +478,28 @@ if [ "$ready" -eq 1 ]; then
     for geo_command in "${geo_commands[@]}"; do
       printf '%s\n' "$geo_command" >&3
     done
+    for ore_command in "${ore_commands[@]}"; do
+      printf '%s\n' "$ore_command" >&3
+    done
+    for y11_command in "${y11_commands[@]}"; do
+      printf '%s\n' "$y11_command" >&3
+    done
+    for extra_ore_command in "${extra_ore_commands[@]}"; do
+      printf '%s\n' "$extra_ore_command" >&3
+    done
+    printf 'execute unless block 0 5 0 minecraft:copper_ore run say LMW_FORBIDDEN_COPPER_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:emerald_ore run say LMW_FORBIDDEN_EMERALD_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 -1 0 minecraft:deepslate run say LMW_FORBIDDEN_DEEPSLATE_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_coal_ore run say LMW_FORBIDDEN_DEEPSLATE_COAL_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_iron_ore run say LMW_FORBIDDEN_DEEPSLATE_IRON_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_gold_ore run say LMW_FORBIDDEN_DEEPSLATE_GOLD_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_redstone_ore run say LMW_FORBIDDEN_DEEPSLATE_REDSTONE_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_diamond_ore run say LMW_FORBIDDEN_DEEPSLATE_DIAMOND_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_lapis_ore run say LMW_FORBIDDEN_DEEPSLATE_LAPIS_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_emerald_ore run say LMW_FORBIDDEN_DEEPSLATE_EMERALD_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:deepslate_copper_ore run say LMW_FORBIDDEN_DEEPSLATE_COPPER_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:water run say LMW_FORBIDDEN_WATER_REPRESENTATIVE\n' >&3
+    printf 'execute unless block 0 5 0 minecraft:lava run say LMW_FORBIDDEN_LAVA_REPRESENTATIVE\n' >&3
     printf 'say LMW_INSPECTION_COMPLETE\n' >&3
     inspection_deadline=$((SECONDS + 30))
     while kill -0 "$paper_job" 2>/dev/null && [ "$SECONDS" -lt "$inspection_deadline" ]; do
@@ -413,7 +528,7 @@ set -e
 
 grep -Fq "LegacyMiningWorld ${expected_version} generator services loaded." \
   "$temp_dir/local-paper-smoke.txt" || die "plugin onLoad confirmation is missing"
-grep -Fq "LegacyMiningWorld ${expected_version} enabled; basic terrain and legacy geology population are available." \
+grep -Fq "LegacyMiningWorld ${expected_version} enabled; basic terrain, legacy geology, and legacy ores are available." \
   "$temp_dir/local-paper-smoke.txt" || die "plugin onEnable confirmation is missing"
 grep -Fq "LegacyMiningWorld ${expected_version} disabled." \
   "$temp_dir/local-paper-smoke.txt" || die "plugin onDisable confirmation is missing"
@@ -439,6 +554,29 @@ for marker in "${geo_markers[@]}"; do
   grep -Fq "[Server] $marker" "$temp_dir/local-paper-smoke.txt" \
     || die "Paper geology smoke marker is missing: $marker"
 done
+for marker in "${ore_markers[@]}" "${y11_markers[@]}" "${extra_ore_markers[@]}"; do
+  grep -Fq "[Server] $marker" "$temp_dir/local-paper-smoke.txt" \
+    || die "Paper ore smoke marker is missing: $marker"
+done
+readonly EXPECTED_FORBIDDEN_MARKERS=(
+  LMW_FORBIDDEN_COPPER_REPRESENTATIVE
+  LMW_FORBIDDEN_EMERALD_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_COAL_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_IRON_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_GOLD_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_REDSTONE_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_DIAMOND_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_LAPIS_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_EMERALD_REPRESENTATIVE
+  LMW_FORBIDDEN_DEEPSLATE_COPPER_REPRESENTATIVE
+  LMW_FORBIDDEN_WATER_REPRESENTATIVE
+  LMW_FORBIDDEN_LAVA_REPRESENTATIVE
+)
+for marker in "${EXPECTED_FORBIDDEN_MARKERS[@]}"; do
+  grep -Fq "[Server] $marker" "$temp_dir/local-paper-smoke.txt" \
+    || die "Paper representative forbidden-material marker is missing: $marker"
+done
 
 if grep -Eiq 'SEVERE|Exception|Could not load|Could not set generator|Could not find generator|InvalidPlugin|NoClassDefFoundError|UnsupportedClassVersionError|Caused by:|Unknown or incomplete command|Unknown command' \
     "$temp_dir/local-paper-smoke.txt"; then
@@ -451,8 +589,11 @@ fi
   || die "source EULA file changed during smoke test"
 
 {
-  printf '\nPASS: LegacyMiningWorld %s loaded and populated fixed-seed legacy geology.\n' "$expected_version"
+  printf '\nPASS: LegacyMiningWorld %s loaded and populated fixed-seed legacy geology and ores.\n' "$expected_version"
   printf 'PASS: all %d fixed geology anchors were observed in Paper.\n' "${#geo_markers[@]}"
+  printf 'PASS: all %d fixed ore anchors were observed in Paper.\n' "${#ore_markers[@]}"
+  printf 'PASS: Y=11 COAL/IRON/GOLD/REDSTONE/DIAMOND markers were observed.\n'
+  printf 'PASS: ore X/Z boundary pairs were observed.\n'
   printf 'PASS: required terrain, biome, bedrock, surface, and air markers were observed.\n'
   printf 'PASS: no generator-selection, command, server, or class-loading failure was found.\n'
 } >> "$temp_dir/local-paper-smoke.txt"
@@ -464,7 +605,7 @@ copy_log local-paper-smoke.txt
   printf 'paper-jar-sha256: %s\n' "$paper_source_sha"
   printf 'fixed-world-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'force-loaded-chunks: %s\n' "$FORCE_LOADED_CHUNKS"
-  printf 'anchor-file: %s\n' "$ANCHOR_FILE"
+  printf 'anchor-file: %s\n' "$GEOLOGY_ANCHOR_FILE"
   printf 'anchor-count: %d\n' "${#geo_markers[@]}"
   printf 'anchor-material-counts: DIRT=%d GRAVEL=%d GRANITE=%d DIORITE=%d ANDESITE=%d\n' \
     "${anchor_material_counts[DIRT]}" \
@@ -484,6 +625,38 @@ copy_log local-paper-smoke.txt
 } > "$temp_dir/geology-world-smoke.txt"
 copy_log geology-world-smoke.txt
 
+{
+  printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'plugin-version: %s\n' "$expected_version"
+  printf 'paper-jar-sha256: %s\n' "$paper_source_sha"
+  printf 'fixed-world-seed: %s\n' "$FIXED_WORLD_SEED"
+  printf 'force-loaded-chunks: %s\n' "$FORCE_LOADED_CHUNKS"
+  printf 'ore-anchor-file: %s\n' "$ORE_ANCHOR_FILE"
+  printf 'ore-anchor-count: %d\n' "${#ore_markers[@]}"
+  printf 'ore-anchor-material-counts: COAL=%d IRON=%d GOLD=%d REDSTONE=%d DIAMOND=%d LAPIS=%d\n' \
+    "${ore_anchor_material_counts[COAL_ORE]}" \
+    "${ore_anchor_material_counts[IRON_ORE]}" \
+    "${ore_anchor_material_counts[GOLD_ORE]}" \
+    "${ore_anchor_material_counts[REDSTONE_ORE]}" \
+    "${ore_anchor_material_counts[DIAMOND_ORE]}" \
+    "${ore_anchor_material_counts[LAPIS_ORE]}"
+  printf 'y11-five-material: PASS\n'
+  printf 'x-boundary-pair: X_COAL PASS\n'
+  printf 'z-boundary-pair: Z_IRON PASS\n'
+  printf 'terrain-protection: PASS\n'
+  printf 'geology-regression: 10/10 PASS\n'
+  grep 'UNDERGROUND_MODEL_PROBE\|UNDERGROUND_MODEL_TOTAL\|UNDERGROUND_Y11_TOTAL' \
+    "$temp_dir/ore-adapter-tests.txt"
+  printf 'forbidden-material-pure-model: PASS four chunks\n'
+  printf 'forbidden-material-paper-representative-points: PASS\n'
+  printf 'paper-marker-inspection: PASS\n'
+  printf 'fatal-error-scan: PASS\n'
+  printf 'source-paper-eula-unchanged: PASS\n'
+  printf 'multiverse-plugin-copied: NO\n'
+  printf 'PASS: Phase 3B fixed-seed ore world smoke completed successfully.\n'
+} > "$temp_dir/ore-world-smoke.txt"
+copy_log ore-world-smoke.txt
+
 for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
   [ -f "$CHECK_DIR/$check_name" ] || die "missing required review check log: $check_name"
 done
@@ -502,8 +675,17 @@ grep -Fq 'ORE_PLAN_PROBE seed=11652021 target=0,0' \
 grep -Fq 'PASS: Phase 3A ore engine tests completed successfully.' \
   "$CHECK_DIR/ore-engine-tests.txt" \
   || die "ore engine review log does not contain its PASS marker"
+grep -Fq 'OreAdapterReviewTest > emitsStablePhaseThreeBReviewEvidence() PASSED' \
+  "$CHECK_DIR/ore-adapter-tests.txt" \
+  || die "ore adapter task did not execute its required review test"
+grep -Fq 'PASS: Phase 3B ore adapter tests completed successfully.' \
+  "$CHECK_DIR/ore-adapter-tests.txt" \
+  || die "ore adapter review log does not contain its PASS marker"
 grep -Fq 'PASS: Phase 2B fixed-seed geology world smoke completed successfully.' \
   "$CHECK_DIR/geology-world-smoke.txt" \
   || die "geology world smoke log does not contain its PASS marker"
+grep -Fq 'PASS: Phase 3B fixed-seed ore world smoke completed successfully.' \
+  "$CHECK_DIR/ore-world-smoke.txt" \
+  || die "ore world smoke log does not contain its PASS marker"
 
 printf 'Review checks passed. Logs: %s\n' "$CHECK_DIR"

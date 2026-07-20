@@ -1,6 +1,6 @@
 package net.nobu0707.legacyminingworld.geology;
 
-/** Pure block categories used to test the future Bukkit Material replacement adapter. */
+/** Pure block categories shared by the Bukkit Material replacement adapters. */
 public enum LegacyBlockKind {
     STONE,
     GRANITE,

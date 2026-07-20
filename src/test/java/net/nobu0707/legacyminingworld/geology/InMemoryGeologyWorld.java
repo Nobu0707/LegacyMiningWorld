@@ -2,9 +2,11 @@ package net.nobu0707.legacyminingworld.geology;
 
 import java.util.EnumMap;
 import java.util.Map;
+import net.nobu0707.legacyminingworld.ore.LegacyOreMaterial;
+import net.nobu0707.legacyminingworld.ore.LegacyOreMaterialAdapter;
 import org.bukkit.Material;
 
-final class InMemoryGeologyWorld implements LegacyGeologyBlockAccess {
+final class InMemoryGeologyWorld implements LegacyUndergroundBlockAccess {
     private static final long FNV_OFFSET_BASIS = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
 
@@ -55,6 +57,16 @@ final class InMemoryGeologyWorld implements LegacyGeologyBlockAccess {
         }
         setCalls++;
         blocks[index(x, y, z)] = LegacyGeologyMaterialAdapter.toMaterial(material);
+    }
+
+    @Override
+    public void setMaterial(int x, int y, int z, LegacyOreMaterial material) {
+        if (!isAccessible(x, y, z)) {
+            inaccessibleGetOrSetCalls++;
+            throw new AssertionError("setMaterial called outside the accessible region");
+        }
+        setCalls++;
+        blocks[index(x, y, z)] = LegacyOreMaterialAdapter.toMaterial(material);
     }
 
     Material getMaterial(int x, int y, int z) {

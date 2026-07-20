@@ -7,6 +7,8 @@ public final class LegacyOreSettings {
     public static final int CHUNK_SIZE = 16;
     public static final int SOURCE_NEIGHBORHOOD_RADIUS = 1;
     public static final int ATTEMPTS_PER_SOURCE_CHUNK = 52;
+    public static final int MINIMUM_APPLICATION_Y = 0;
+    public static final int MAXIMUM_APPLICATION_Y_EXCLUSIVE = 68;
     public static final List<LegacyOreFeature> FEATURES = List.of(
             LegacyOreFeature.COAL,
             LegacyOreFeature.IRON,

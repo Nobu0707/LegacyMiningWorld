@@ -108,4 +108,12 @@ Phase 3Aが再現するのは、公式6設定、feature順とexplicit salt、dec
 
 Vanilla biome decoration pipeline全体、他feature、heightmap早期終了、実block置換の成功/失敗、Vanilla noise地形、洞窟、水、溶岩は再現しない。LegacyMiningWorldは固定Y=70/PLAINSで、Phase 2Aと同様にfeatureごとのRandomを独立再構築する。このため「1.16.5の設定・分布・形状に準拠」と「1.16.5同一seedのblock座標完全一致」は同義ではなく、後者を保証しない。
 
-Phase 3AではPaper runtimeへ接続しない。`getDefaultPopulators`、`LegacyGeologyPopulator`、`LimitedRegion` adapter、Bukkit ore Material変換は変更せず、実ワールドには鉱石を置かない。Phase 3Bでは単一のstateless underground populator内で既存geology applicatorを先に、ore applicatorを後に同期適用する案を優先する。`getDefaultPopulators`は引き続き変更不能な1要素listとし、同じpopulate呼び出し内だけで`LimitedRegion`を使う。Multiverse-CoreはPhase 4まで使用しない。
+Phase 3A時点ではPaper runtimeへ接続しなかった。`getDefaultPopulators`、`LegacyGeologyPopulator`、`LimitedRegion` adapter、Bukkit ore Material変換は変更せず、実ワールドには鉱石を置かなかった。後続Phase 3Bの設計として、単一のstateless underground populator内で既存geology applicatorを先に、ore applicatorを後に同期適用する方式を選定した。`getDefaultPopulators`は変更不能な1要素listとし、同じpopulate呼び出し内だけで`LimitedRegion`を使う。Multiverse-CoreはPhase 4まで使用しない。
+
+## Phase 3B runtime接続
+
+Phase 3B/version 0.4.0で6鉱石をPaper runtimeへ接続した。単一`LegacyUndergroundPopulator`内でgeology後にoreを適用し、明示Material adapter、read-before-write、target ownership、適用Y=0..67を使用する。Y<0とY>=68のcandidateは現在blockに関係なくskipする。
+
+固定seed `11652021`の4chunk combined countはCOAL 867、IRON 443、GOLD 48、REDSTONE 106、DIAMOND 17、LAPIS 19、checksumは`-7165395187979696007`。Y=11にはCOAL 6、IRON 5、GOLD 8、REDSTONE 7、DIAMOND 4が残り、14固定anchor、COAL X境界pair、IRON Z境界pairをPaper実block検査へ使用する。geology-only goldenと10既存anchorは不変である。
+
+このruntime接続も旧Vanilla同一seedとのblock座標完全一致を保証しない。Multiverse-Core統合と大量chunk完全走査はPhase 4で扱う。

@@ -48,18 +48,24 @@ Multiverse-CoreはPhase 2Bでは依存・コピー・実行していない。
 
 Phase 3は、seed・分布・境界の純粋検証とPaper書き込みを分離して実装リスクを下げるため3A/3Bへ分割した。
 
-## Phase 3B — Paper鉱石配置（未実装、予定version 0.4.0）
+## Phase 3B — Paper鉱石配置（完了、version 0.4.0）
 
 - 単一stateless underground populator内でgeologyの後にoreを適用
-- LimitedRegionとBukkit Material adapter
-- 6鉱石のruntime生成、固定ore anchor、X/Z境界
-- Y=11検査、distribution sanity、geology golden/Paper smoke回帰
+- LimitedRegion限定のBukkit Material adapterとread-before-write applicator
+- 6鉱石のruntime生成、固定ore anchor 14件、COAL X境界、IRON Z境界
+- Y=11でCOAL/IRON/GOLD/REDSTONE/DIAMONDを固定実block検査
+- combined 4chunk counts/checksum、並行性、geology 10 anchor/golden回帰
 - 固定PLAINS仕様にはemeraldとbadlands追加goldを含めない
 - copperおよびDEEPSLATE系鉱石を生成しない
+- release JAR・review checks・2種review archive
+
+Multiverse-CoreはPhase 3Bでも依存・コピー・実行していない。
 
 ## Phase 4 — 統合・リリース候補（未実装）
 
 - Multiverse-Coreでgenerator列挙とworld作成を確認
 - `server/plugins/multiverse-core-5.7.2.jar`をこのPhaseで初めて使用
-- 大量chunk生成、禁止block走査、性能、決定性、再生成一致
+- `/mv generators`と`/mv create`によるgenerated world検査
+- 大量chunk生成、MCA/NBT等による禁止block完全走査、distribution report
+- 性能、決定性、再生成一致
 - README完成とrelease candidate

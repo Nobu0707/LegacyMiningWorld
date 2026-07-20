@@ -17,7 +17,7 @@ public final class LegacyMiningWorldPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         getLogger().info(identity()
-                + " enabled; basic terrain and legacy geology population are available.");
+                + " enabled; basic terrain, legacy geology, and legacy ores are available.");
     }
 
     @Override

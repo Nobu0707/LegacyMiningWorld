@@ -49,7 +49,7 @@ tasks.register<Test>("geologyEngineTest") {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform {
-        excludeTags("geology-adapter")
+        excludeTags("geology-adapter", "ore-adapter")
     }
     filter {
         includeTestsMatching("net.nobu0707.legacyminingworld.geology.*")
@@ -83,9 +83,27 @@ tasks.register<Test>("oreEngineTest") {
     group = "verification"
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("ore-adapter")
+    }
     filter {
         includeTestsMatching("net.nobu0707.legacyminingworld.ore.*")
+    }
+    systemProperty("legacyminingworld.version", project.version.toString())
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Test>("oreAdapterTest") {
+    description = "Runs the Phase 3B Paper ore adapter and combined underground review suite."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("ore-adapter")
     }
     systemProperty("legacyminingworld.version", project.version.toString())
     outputs.upToDateWhen { false }

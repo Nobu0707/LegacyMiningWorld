@@ -11,7 +11,7 @@ import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
-import net.nobu0707.legacyminingworld.geology.LegacyGeologyPopulator;
+import net.nobu0707.legacyminingworld.geology.LegacyUndergroundPopulator;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -64,16 +64,16 @@ class LegacyMiningChunkGeneratorTest {
 
     @Test
     @Tag("geology-adapter")
-    void registersOneImmutableReusableGeologyPopulator() {
+    void registersOneImmutableReusableUndergroundPopulator() {
         List<org.bukkit.generator.BlockPopulator> first = generator.getDefaultPopulators(null);
         List<org.bukkit.generator.BlockPopulator> second = generator.getDefaultPopulators(null);
 
         assertEquals(1, first.size());
-        assertTrue(first.getFirst() instanceof LegacyGeologyPopulator);
+        assertTrue(first.getFirst() instanceof LegacyUndergroundPopulator);
         assertSame(first, second);
         assertSame(first.getFirst(), second.getFirst());
         assertThrows(UnsupportedOperationException.class,
-                () -> first.add(new LegacyGeologyPopulator()));
+                () -> first.add(new LegacyUndergroundPopulator()));
     }
 
     private static WorldInfo worldInfo(int minHeight, int maxHeight) {

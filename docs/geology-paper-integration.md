@@ -1,4 +1,4 @@
-# Phase 2B Paper地中岩石統合
+# Phase 2B/3B Paper地下生成統合
 
 ## API境界
 
@@ -13,13 +13,13 @@ public void populate(
         LimitedRegion limitedRegion)
 ```
 
-`LegacyMiningChunkGenerator#getDefaultPopulators(World)`は変更不能な単一要素listを返し、同じstateless `LegacyGeologyPopulator`を共有する。`World#getPopulators().add`や`WorldInitEvent`による二重登録は行わない。Worldとworld seedはfieldへ保存しない。
+Phase 2Bでは`LegacyGeologyPopulator`を使用したが、Phase 3Bでstandalone populatorを削除し、`LegacyMiningChunkGenerator#getDefaultPopulators(World)`は変更不能な単一要素listからstateless `LegacyUndergroundPopulator`を共有する。地質applicator自体は変更せず、同じcallbackでgeologyの直後にoreを適用する。`World#getPopulators().add`や`WorldInitEvent`による二重登録は行わない。Worldとworld seedはfieldへ保存しない。
 
 Paperが渡す`Random`は意図的に使用しない。Phase 2Aの決定性契約はworld seedとsource chunk由来であり、populationのthread割り当てや実行順に依存させないためである。seedは各呼び出しで`WorldInfo#getSeed()`から取得する。
 
 ## LimitedRegion制約
 
-`LimitedRegionGeologyBlockAccess`はpopulate呼び出し中だけ作成し、絶対座標で次だけを呼ぶ。
+Phase 3Bの`LimitedRegionUndergroundBlockAccess`はpopulate呼び出し中だけ作成し、地質と鉱石で共有する。絶対座標で次だけを呼ぶ。
 
 - `isInRegion(int, int, int)`
 - `getType(int, int, int)`
@@ -83,6 +83,8 @@ X境界はX=-1/0を同じsource GRAVEL veinの両側で、Z境界はZ=-1/0を同
 
 populator/applicator/plannerはimmutable参照とmethod-local stateだけを持つ。同じapplicatorを複数threadから独立regionへ適用するJUnitでsummary/count/checksum一致を確認した。productionではchunk/material/candidateごとのlogを出さない。
 
-## Phase境界
+## Phase 3B回帰とPhase境界
 
-Phase 2Bは5種類の地中岩石までである。Phase 3A/version 0.4.0-alpha.1で6鉱石のpure engineを追加したが、このpopulatorと`getDefaultPopulators`は変更せず、Paper実ワールドへは未接続である。Phase 3Bで単一underground populator内のgeology→ore順へ統合する。Multiverse-Core統合・大量chunk性能試験はPhase 4で扱い、現在の依存、plugin descriptor、Paper smoke、release JARにMultiverse-Coreは含まれない。
+Phase 3B/version 0.4.0で単一underground populator内のgeology→ore順へ移行した。geology-only planner 5,564/checksum `-4572519745665027215`と4chunk checksum `-8052018879515985261`は不変で、固定geology anchor 10件もcombined final worldで10/10残る。oreがstone variantsを置換した最終worldは別のcombined checksum `-7165395187979696007`で管理する。詳細は[Phase 3B Paper鉱石統合](ore-paper-integration.md)を参照。
+
+Multiverse-Core統合・大量chunk性能試験・禁止block完全走査はPhase 4で扱い、現在の依存、plugin descriptor、Paper smoke、release JARにMultiverse-Coreは含まれない。

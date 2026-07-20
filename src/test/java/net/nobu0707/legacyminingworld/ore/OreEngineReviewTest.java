@@ -38,7 +38,7 @@ class OreEngineReviewTest {
         System.out.println("geology-regression: PASS (separate geology suites)");
         System.out.println("source-research-document: docs/vanilla-1.16.5-ores.md");
 
-        assertEquals("0.4.0-alpha.1", System.getProperty("legacyminingworld.version"));
+        assertEquals("0.4.0", System.getProperty("legacyminingworld.version"));
         assertEquals(52, LegacyOreSettings.ATTEMPTS_PER_SOURCE_CHUNK);
         assertTrue(Files.isRegularFile(Path.of("docs/vanilla-1.16.5-ores.md")));
         assertEquals(613, placements.size());

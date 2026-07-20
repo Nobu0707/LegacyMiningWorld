@@ -38,6 +38,8 @@ class LegacyOreSettingsTest {
                 .mapToInt(LegacyOreFeature::attempts)
                 .sum());
         assertEquals(52, LegacyOreSettings.ATTEMPTS_PER_SOURCE_CHUNK);
+        assertEquals(0, LegacyOreSettings.MINIMUM_APPLICATION_Y);
+        assertEquals(68, LegacyOreSettings.MAXIMUM_APPLICATION_Y_EXCLUSIVE);
         assertEquals(Set.of(5, 6, 7, 8, 9, 10), new HashSet<>(LegacyOreSettings.FEATURES.stream()
                 .map(LegacyOreFeature::stableSalt)
                 .toList()));
