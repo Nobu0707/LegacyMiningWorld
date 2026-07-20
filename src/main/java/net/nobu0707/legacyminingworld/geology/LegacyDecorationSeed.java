@@ -21,18 +21,33 @@ public final class LegacyDecorationSeed {
 
     public static long featureSeed(
             long worldSeed, int sourceChunkX, int sourceChunkZ, LegacyGeologyFeature feature) {
-        long decorationSeed = decorationSeed(worldSeed, sourceChunkX, sourceChunkZ);
-        return featureSeed(decorationSeed, feature);
+        return featureSeed(
+                worldSeed, sourceChunkX, sourceChunkZ, feature.stableSalt());
     }
 
     public static long featureSeed(long decorationSeed, LegacyGeologyFeature feature) {
+        return featureSeed(decorationSeed, feature.stableSalt());
+    }
+
+    public static long featureSeed(
+            long worldSeed, int sourceChunkX, int sourceChunkZ, int stableSalt) {
+        long decorationSeed = decorationSeed(worldSeed, sourceChunkX, sourceChunkZ);
+        return featureSeed(decorationSeed, stableSalt);
+    }
+
+    public static long featureSeed(long decorationSeed, int stableSalt) {
         return decorationSeed
-                + feature.stableSalt()
+                + stableSalt
                 + FEATURE_STEP_MULTIPLIER * UNDERGROUND_ORES_DECORATION_STEP;
     }
 
     public static Random featureRandom(
             long worldSeed, int sourceChunkX, int sourceChunkZ, LegacyGeologyFeature feature) {
         return new Random(featureSeed(worldSeed, sourceChunkX, sourceChunkZ, feature));
+    }
+
+    public static Random featureRandom(
+            long worldSeed, int sourceChunkX, int sourceChunkZ, int stableSalt) {
+        return new Random(featureSeed(worldSeed, sourceChunkX, sourceChunkZ, stableSalt));
     }
 }

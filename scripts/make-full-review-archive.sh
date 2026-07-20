@@ -8,6 +8,7 @@ readonly REQUIRED_REVIEW_CHECKS=(
   gradle-test.txt
   geology-engine-tests.txt
   geology-adapter-tests.txt
+  ore-engine-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -134,7 +135,7 @@ done < <(find build/review-checks -maxdepth 1 -type f -name '*.txt' -print0 | so
 
 if command -v rg >/dev/null 2>&1; then
   rg -n \
-    -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|Multiverse' \
+    -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|LegacyOre|COAL_ORE|IRON_ORE|GOLD_ORE|REDSTONE_ORE|DIAMOND_ORE|LAPIS_ORE|DepthAverage|baseline|spread|stableSalt|featureSeed|UNDERGROUND_ORES|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|Multiverse' \
     "$archive_stage/repo" > "$archive_stage/checks/rg-review-signals.txt" || true
   rg -n -i \
     -e 'TODO|FIXME|HACK|XXX|SNAPSHOT|password|token|secret|credential' \

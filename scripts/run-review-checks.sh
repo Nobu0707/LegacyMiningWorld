@@ -14,6 +14,7 @@ readonly REQUIRED_REVIEW_CHECKS=(
   gradle-test.txt
   geology-engine-tests.txt
   geology-adapter-tests.txt
+  ore-engine-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -124,6 +125,45 @@ copy_log geology-engine-tests.txt
 }
 copy_log geology-adapter-tests.txt
 
+[ -f docs/vanilla-1.16.5-ores.md ] \
+  || die "missing official ore research document: docs/vanilla-1.16.5-ores.md"
+{
+  printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'java-version:\n'
+  java -version 2>&1
+  printf '\ngradle-version:\n'
+  ./gradlew --version
+  printf '\nplugin-version: %s\n' "$expected_version"
+  printf 'test-task: oreEngineTest\n'
+  printf 'test-filter: net.nobu0707.legacyminingworld.ore.*\n'
+  printf 'official-research-document: docs/vanilla-1.16.5-ores.md EXISTS\n'
+  printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
+  printf 'fixed-target-chunk: 0,0\n\n'
+  ./gradlew --no-daemon oreEngineTest
+  printf '\nfeature-settings: PASS\n'
+  printf 'total-attempts: 52 PASS\n'
+  printf 'stable-salts: 5..10 PASS\n'
+  printf 'uniform-distribution-tests: PASS\n'
+  printf 'lapis-depth-average-tests: PASS\n'
+  printf 'seed-golden-tests: PASS\n'
+  printf 'origin-sequence-tests: PASS\n'
+  printf 'planner-golden-count: 613\n'
+  printf 'planner-golden-checksum: -6214814787450030649\n'
+  printf 'material-counts: COAL_ORE=431 IRON_ORE=111 GOLD_ORE=14 REDSTONE_ORE=49 DIAMOND_ORE=2 LAPIS_ORE=6\n'
+  printf 'x-z-continuity: PASS\n'
+  printf 'negative-chunk: PASS\n'
+  printf 'source-radius: PASS\n'
+  printf 'replacement: PASS\n'
+  printf 'concurrency: PASS\n'
+  printf 'geology-regression: PASS\n'
+  printf 'PASS: Phase 3A ore engine tests completed successfully.\n'
+} > "$temp_dir/ore-engine-tests.txt" 2>&1 || {
+  copy_log ore-engine-tests.txt
+  cat "$temp_dir/ore-engine-tests.txt" >&2
+  die "Phase 3A ore engine tests failed"
+}
+copy_log ore-engine-tests.txt
+
 run_gradle_check gradle-build.txt build
 copy_log git-diff-check.txt
 
@@ -148,7 +188,13 @@ for required_class in \
   'net/nobu0707/legacyminingworld/geology/LegacyGeologyPopulator.class' \
   'net/nobu0707/legacyminingworld/geology/LegacyGeologyMaterialAdapter.class' \
   'net/nobu0707/legacyminingworld/geology/LegacyGeologyApplicator.class' \
-  'net/nobu0707/legacyminingworld/geology/LimitedRegionGeologyBlockAccess.class'; do
+  'net/nobu0707/legacyminingworld/geology/LimitedRegionGeologyBlockAccess.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOrePlanner.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOreFeature.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOreMaterial.class' \
+  'net/nobu0707/legacyminingworld/ore/LegacyOreHeightDistribution.class' \
+  'net/nobu0707/legacyminingworld/ore/UniformRangeDistribution.class' \
+  'net/nobu0707/legacyminingworld/ore/DepthAverageDistribution.class'; do
   grep -Fxq "$required_class" "$temp_dir/jar-contents.txt" \
     || die "release JAR is missing production class: $required_class"
 done
@@ -173,8 +219,25 @@ if rg -n \
   die "production source uses a forbidden world, chunk, scheduler, or retained-state API"
 fi
 if rg -n -i 'multiverse' build.gradle.kts gradle.properties src/main >/dev/null; then
-  die "Phase 2B must not declare or use Multiverse-Core"
+  die "Phase 3A must not declare or use Multiverse-Core"
 fi
+if rg -n \
+    -e 'org\.bukkit' \
+    -e 'BlockPopulator' \
+    -e 'LimitedRegion' \
+    src/main/java/net/nobu0707/legacyminingworld/ore >/dev/null; then
+  die "Phase 3A pure ore package is connected to a Paper/Bukkit runtime API"
+fi
+if rg -n \
+    -g '!**/ore/**' \
+    -e 'LegacyOre' \
+    -e 'legacyminingworld\.ore' \
+    src/main/java >/dev/null; then
+  die "Phase 3A ore engine is connected outside its pure production package"
+fi
+grep -Fq 'List.of(new LegacyGeologyPopulator())' \
+  src/main/java/net/nobu0707/legacyminingworld/LegacyMiningChunkGenerator.java \
+  || die "getDefaultPopulators no longer registers the single Phase 2B geology populator"
 
 unzip -p "$built_jar" plugin.yml > "$temp_dir/jar-plugin-yml.txt" \
   || die "plugin.yml is missing from the release JAR"
@@ -430,6 +493,15 @@ grep -Fq 'PASS: Phase 2A geology engine tests completed successfully.' \
 grep -Fq 'PASS: Phase 2B geology adapter tests completed successfully.' \
   "$CHECK_DIR/geology-adapter-tests.txt" \
   || die "geology adapter review log does not contain its PASS marker"
+grep -Fq 'OreEngineReviewTest > emitsStablePhaseThreeAReviewEvidence() PASSED' \
+  "$CHECK_DIR/ore-engine-tests.txt" \
+  || die "ore engine task did not execute its required review test"
+grep -Fq 'ORE_PLAN_PROBE seed=11652021 target=0,0' \
+  "$CHECK_DIR/ore-engine-tests.txt" \
+  || die "ore engine review log does not contain its fixed planner probe"
+grep -Fq 'PASS: Phase 3A ore engine tests completed successfully.' \
+  "$CHECK_DIR/ore-engine-tests.txt" \
+  || die "ore engine review log does not contain its PASS marker"
 grep -Fq 'PASS: Phase 2B fixed-seed geology world smoke completed successfully.' \
   "$CHECK_DIR/geology-world-smoke.txt" \
   || die "geology world smoke log does not contain its PASS marker"

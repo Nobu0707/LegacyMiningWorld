@@ -36,13 +36,26 @@
 
 Multiverse-CoreはPhase 2Bでは依存・コピー・実行していない。
 
-## Phase 3 — 鉱石（未実装）
+## Phase 3A — 鉱石pure engine（完了、version 0.4.0-alpha.1）
 
-- 石炭、鉄、金、レッドストーン、ダイヤモンド、ラピスラズリ
-- Java 1.16.5の分布と鉱脈形状
-- 固定PLAINS仕様にはエメラルドとバッドランド追加金を含めない
-- 銅およびDEEPSLATE系鉱石を生成しない
-- 統計・chunk境界・Paper実機テスト
+- Mojang公式Java 1.16.5 server JAR/mappingによる鉱石固有の一次資料調査
+- COAL、IRON、GOLD、REDSTONE、DIAMOND、LAPISの6設定とstable salts 5～10
+- uniform rangeとlapis depth-average、X/Z/Y/shapeの正確な乱数順
+- `LegacyDecorationSeed`の互換拡張と既存`LegacyVeinGenerator`再利用
+- 52 attempts/source chunk、target ownership、3×3 source neighborhood、X/Z/4chunk境界
+- replacement、negative/large chunk、golden count/checksum、6 material count、並行性テスト
+- Paper runtimeへは未接続。既存geology BlockPopulatorとLimitedRegion adapterは変更しない
+
+Phase 3は、seed・分布・境界の純粋検証とPaper書き込みを分離して実装リスクを下げるため3A/3Bへ分割した。
+
+## Phase 3B — Paper鉱石配置（未実装、予定version 0.4.0）
+
+- 単一stateless underground populator内でgeologyの後にoreを適用
+- LimitedRegionとBukkit Material adapter
+- 6鉱石のruntime生成、固定ore anchor、X/Z境界
+- Y=11検査、distribution sanity、geology golden/Paper smoke回帰
+- 固定PLAINS仕様にはemeraldとbadlands追加goldを含めない
+- copperおよびDEEPSLATE系鉱石を生成しない
 
 ## Phase 4 — 統合・リリース候補（未実装）
 

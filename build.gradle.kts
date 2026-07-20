@@ -78,6 +78,23 @@ tasks.register<Test>("geologyAdapterTest") {
     }
 }
 
+tasks.register<Test>("oreEngineTest") {
+    description = "Runs the Phase 3A pure deterministic ore engine review suite."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform()
+    filter {
+        includeTestsMatching("net.nobu0707.legacyminingworld.ore.*")
+    }
+    systemProperty("legacyminingworld.version", project.version.toString())
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
 tasks.jar {
     archiveBaseName = "LegacyMiningWorld"
     archiveVersion = project.version.toString()
