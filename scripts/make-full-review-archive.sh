@@ -131,7 +131,7 @@ done < <(find build/review-checks -maxdepth 1 -type f -name '*.txt' -print0 | so
 
 if command -v rg >/dev/null 2>&1; then
   rg -n \
-    -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Random|seed|Multiverse' \
+    -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Random|seed|Multiverse' \
     "$archive_stage/repo" > "$archive_stage/checks/rg-review-signals.txt" || true
   rg -n -i \
     -e 'TODO|FIXME|HACK|XXX|SNAPSHOT|password|token|secret|credential' \

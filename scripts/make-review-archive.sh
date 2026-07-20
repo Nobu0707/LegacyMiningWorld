@@ -159,7 +159,7 @@ done < <(git ls-files -m -d -o --exclude-standard -z)
     rg -n --hidden \
       --glob '!.git/**' --glob '!build/**' --glob '!.gradle/**' --glob '!server/**' \
       --glob '!*.jar' --glob '!*.log' --glob '!*.tar.gz' --glob '!*.zip' \
-      -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Random|seed|Multiverse' \
+      -e 'ChunkGenerator|ChunkData|BlockPopulator|LimitedRegion|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Random|seed|Multiverse' \
       . || true
   else
     printf 'rg not available; review signal scan skipped.\n'

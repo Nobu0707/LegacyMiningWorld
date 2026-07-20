@@ -1,6 +1,8 @@
 package net.nobu0707.legacyminingworld;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -9,7 +11,17 @@ import java.nio.charset.StandardCharsets;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
 
-class PhaseZeroConfigurationTest {
+class PhaseOneConfigurationTest {
+    @Test
+    void normalizesOnlySupportedGeneratorIds() {
+        assertEquals("default", LegacyMiningWorldPlugin.normalizeSupportedId(null));
+        assertEquals("default", LegacyMiningWorldPlugin.normalizeSupportedId(""));
+        assertEquals("default", LegacyMiningWorldPlugin.normalizeSupportedId("   "));
+        assertEquals("default", LegacyMiningWorldPlugin.normalizeSupportedId("DEFAULT"));
+        assertEquals("default", LegacyMiningWorldPlugin.normalizeSupportedId(" Default "));
+        assertNull(LegacyMiningWorldPlugin.normalizeSupportedId("legacy"));
+    }
+
     @Test
     void mainClassIsAPaperPlugin() {
         assertTrue(JavaPlugin.class.isAssignableFrom(LegacyMiningWorldPlugin.class));
@@ -19,10 +31,11 @@ class PhaseZeroConfigurationTest {
     void versionPropertyIsPresent() {
         String version = System.getProperty("legacyminingworld.version", "");
         assertFalse(version.isBlank());
+        assertTrue(version.equals("0.2.0"));
     }
 
     @Test
-    void processedPluginDescriptorContainsPhaseZeroMetadata() throws IOException {
+    void processedPluginDescriptorContainsPhaseOneMetadata() throws IOException {
         String descriptor;
         try (InputStream input = getClass().getResourceAsStream("/plugin.yml")) {
             assertTrue(input != null, "processed plugin.yml must be on the test classpath");

@@ -21,6 +21,10 @@ expected_version="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties 
 temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/legacyminingworld-checks.XXXXXX")"
 paper_job=""
 cleanup() {
+  if [ -f "$temp_dir/local-paper-smoke.txt" ]; then
+    mkdir -p "$CHECK_DIR"
+    cp "$temp_dir/local-paper-smoke.txt" "$CHECK_DIR/local-paper-smoke.txt"
+  fi
   if [ -n "$paper_job" ] && kill -0 "$paper_job" 2>/dev/null; then
     kill "$paper_job" 2>/dev/null || true
     wait "$paper_job" 2>/dev/null || true
@@ -118,13 +122,24 @@ cat > "$SMOKE_DIR/server.properties" <<'PROPERTIES'
 online-mode=false
 server-ip=127.0.0.1
 server-port=0
+level-name=legacy_mining_smoke
+allow-nether=false
 max-players=1
-motd=LegacyMiningWorld Phase 0 smoke
+motd=LegacyMiningWorld Phase 1 generator smoke
 spawn-protection=0
 view-distance=2
 simulation-distance=2
 network-compression-threshold=-1
+difficulty=peaceful
 PROPERTIES
+
+cat > "$SMOKE_DIR/bukkit.yml" <<'YAML'
+settings:
+  allow-end: false
+worlds:
+  legacy_mining_smoke:
+    generator: LegacyMiningWorld
+YAML
 
 smoke_fifo="$temp_dir/paper-stdin"
 mkfifo "$smoke_fifo"
@@ -148,6 +163,20 @@ while kill -0 "$paper_job" 2>/dev/null && [ "$SECONDS" -lt "$deadline" ]; do
 done
 
 if [ "$ready" -eq 1 ]; then
+  printf 'forceload add -16 -16 15 15\n' >&3
+  sleep 3
+  printf 'execute if block 0 70 0 minecraft:grass_block run say LMW_BLOCK_GRASS_0_70_0\n' >&3
+  printf 'execute if block 0 69 0 minecraft:dirt run say LMW_BLOCK_DIRT_0_69_0\n' >&3
+  printf 'execute if block 0 68 0 minecraft:dirt run say LMW_BLOCK_DIRT_0_68_0\n' >&3
+  printf 'execute if block 0 67 0 minecraft:stone run say LMW_BLOCK_STONE_0_67_0\n' >&3
+  printf 'execute if block 0 5 0 minecraft:stone run say LMW_BLOCK_STONE_0_5_0\n' >&3
+  printf 'execute if block 0 0 0 minecraft:bedrock run say LMW_BLOCK_BEDROCK_0_0_0\n' >&3
+  printf 'execute if block 0 -1 0 minecraft:air run say LMW_BLOCK_AIR_0_NEGATIVE_1_0\n' >&3
+  printf 'execute if block 0 71 0 minecraft:air run say LMW_BLOCK_AIR_0_71_0\n' >&3
+  printf 'execute if biome 0 70 0 minecraft:plains run say LMW_BIOME_PLAINS_0_70_0\n' >&3
+  printf 'execute if block 15 70 15 minecraft:grass_block run say LMW_BLOCK_GRASS_15_70_15\n' >&3
+  printf 'execute if block -15 68 -15 minecraft:dirt run say LMW_BLOCK_DIRT_NEGATIVE_15_68_NEGATIVE_15\n' >&3
+  sleep 3
   printf 'stop\n' >&3
 else
   printf 'stop\n' >&3 || true
@@ -168,12 +197,12 @@ if [ "$paper_status" -ne 0 ]; then
   die "Paper smoke process exited with status $paper_status"
 fi
 
-if ! grep -Fq "LegacyMiningWorld ${expected_version} Phase 0 foundation loaded." \
+if ! grep -Fq "LegacyMiningWorld ${expected_version} generator services loaded." \
     "$temp_dir/local-paper-smoke.txt"; then
   copy_log local-paper-smoke.txt
   die "plugin onLoad confirmation is missing from Paper log"
 fi
-if ! grep -Fq "LegacyMiningWorld ${expected_version} enabled; the world generator is not implemented in Phase 0." \
+if ! grep -Fq "LegacyMiningWorld ${expected_version} enabled; Phase 1 basic terrain generator is available." \
     "$temp_dir/local-paper-smoke.txt"; then
   copy_log local-paper-smoke.txt
   die "plugin onEnable confirmation is missing from Paper log"
@@ -184,7 +213,33 @@ if ! grep -Fq "LegacyMiningWorld ${expected_version} disabled." \
   die "plugin onDisable confirmation is missing from Paper log"
 fi
 
-if grep -Eiq 'SEVERE|Exception|Could not load|InvalidPlugin|NoClassDefFoundError|UnsupportedClassVersionError|Caused by:' \
+if ! grep -Fq "Generator requested for world 'legacy_mining_smoke' with id 'default'." \
+    "$temp_dir/local-paper-smoke.txt"; then
+  copy_log local-paper-smoke.txt
+  die "generator request confirmation is missing from Paper log"
+fi
+
+readonly EXPECTED_SMOKE_MARKERS=(
+  LMW_BLOCK_GRASS_0_70_0
+  LMW_BLOCK_DIRT_0_69_0
+  LMW_BLOCK_DIRT_0_68_0
+  LMW_BLOCK_STONE_0_67_0
+  LMW_BLOCK_STONE_0_5_0
+  LMW_BLOCK_BEDROCK_0_0_0
+  LMW_BLOCK_AIR_0_NEGATIVE_1_0
+  LMW_BLOCK_AIR_0_71_0
+  LMW_BIOME_PLAINS_0_70_0
+  LMW_BLOCK_GRASS_15_70_15
+  LMW_BLOCK_DIRT_NEGATIVE_15_68_NEGATIVE_15
+)
+for marker in "${EXPECTED_SMOKE_MARKERS[@]}"; do
+  if ! grep -Fq "[Server] $marker" "$temp_dir/local-paper-smoke.txt"; then
+    copy_log local-paper-smoke.txt
+    die "Paper generator smoke marker is missing: $marker"
+  fi
+done
+
+if grep -Eiq 'SEVERE|Exception|Could not load|Could not set generator|Could not find generator|InvalidPlugin|NoClassDefFoundError|UnsupportedClassVersionError|Caused by:|Unknown or incomplete command' \
     "$temp_dir/local-paper-smoke.txt"; then
   copy_log local-paper-smoke.txt
   die "Paper smoke log contains a fatal error signal"
@@ -196,8 +251,10 @@ fi
   || die "source EULA file changed during smoke test"
 
 {
-  printf '\nPASS: LegacyMiningWorld %s loaded, enabled, and disabled cleanly.\n' "$expected_version"
-  printf 'PASS: no SEVERE, Exception, Could not load, InvalidPlugin, or class-loading failure was found.\n'
+  printf '\nPASS: LegacyMiningWorld %s generator loaded, generated the configured world, and shut down cleanly.\n' "$expected_version"
+  printf 'PASS: required terrain blocks at and around the origin match the Phase 1 profile.\n'
+  printf 'PASS: the origin biome is minecraft:plains.\n'
+  printf 'PASS: no generator-selection, command, server, or class-loading failure was found.\n'
 } >> "$temp_dir/local-paper-smoke.txt"
 copy_log local-paper-smoke.txt
 
