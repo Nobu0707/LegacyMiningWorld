@@ -17,6 +17,7 @@ readonly REQUIRED_REVIEW_CHECKS=(
   geology-adapter-tests.txt
   ore-engine-tests.txt
   ore-adapter-tests.txt
+  multiverse-verifier-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -24,7 +25,13 @@ readonly REQUIRED_REVIEW_CHECKS=(
   release-artifacts.txt
   jar-plugin-yml.txt
   jar-contents.txt
+  verifier-jar-contents.txt
   verify-built-jar-version.txt
+  multiverse-jar-inspection.txt
+  multiverse-first-boot.txt
+  multiverse-second-boot.txt
+  multiverse-world-scan.txt
+  multiverse-integration-smoke.txt
 )
 
 die() {
@@ -201,14 +208,25 @@ copy_log ore-engine-tests.txt
 }
 copy_log ore-adapter-tests.txt
 
+run_gradle_check multiverse-verifier-tests.txt multiverseVerifierTest
+
 run_gradle_check gradle-build.txt build
+./gradlew --no-daemon multiverseVerifierJar >> "$temp_dir/gradle-build.txt" 2>&1 || {
+  copy_log gradle-build.txt
+  cat "$temp_dir/gradle-build.txt" >&2
+  die "test-only Multiverse verifier JAR build failed"
+}
+copy_log gradle-build.txt
 copy_log git-diff-check.txt
 
-mapfile -t built_jars < <(find build/libs -maxdepth 1 -type f -name 'LegacyMiningWorld-*.jar' -print | sort)
+mapfile -t built_jars < <(find build/libs -maxdepth 1 -type f \
+  -name 'LegacyMiningWorld-*.jar' ! -name 'LegacyMiningWorld-MultiverseVerifier-*.jar' -print | sort)
 [ "${#built_jars[@]}" -eq 1 ] || die "expected exactly one release JAR, found ${#built_jars[@]}"
 built_jar="${built_jars[0]}"
 expected_jar="build/libs/LegacyMiningWorld-${expected_version}.jar"
 [ "$built_jar" = "$expected_jar" ] || die "unexpected JAR name: $built_jar"
+verifier_jar="build/libs/LegacyMiningWorld-MultiverseVerifier-${expected_version}.jar"
+[ -f "$verifier_jar" ] || die "test-only verifier JAR is missing: $verifier_jar"
 
 jar tf "$built_jar" > "$temp_dir/jar-contents.txt"
 copy_log jar-contents.txt
@@ -220,6 +238,26 @@ fi
 if grep -Eiq 'minecraft-1\.16\.5|server-mappings|decompil|geology-smoke-anchors|ore-smoke-anchors|multiverse' \
     "$temp_dir/jar-contents.txt"; then
   die "release JAR contains a research, test-anchor, or Multiverse artifact"
+fi
+
+jar tf "$verifier_jar" > "$temp_dir/verifier-jar-contents.txt"
+copy_log verifier-jar-contents.txt
+for required_path in \
+  'plugin.yml' \
+  'geology-smoke-anchors.tsv' \
+  'ore-smoke-anchors.tsv' \
+  'net/nobu0707/legacyminingworld/integration/MultiverseIntegrationVerifierPlugin.class' \
+  'net/nobu0707/legacyminingworld/integration/SnapshotScanner.class'; do
+  grep -Fxq "$required_path" "$temp_dir/verifier-jar-contents.txt" \
+    || die "verifier JAR is missing: $required_path"
+done
+if grep -E '\.class$' "$temp_dir/verifier-jar-contents.txt" \
+    | grep -Ev '^net/nobu0707/legacyminingworld/integration/' >/dev/null; then
+  die "verifier JAR contains a production or external class"
+fi
+if grep -Eiq '(^|/)src/|(^|/)server/|\.log$|\.tar\.gz$|org/mvplugins|org/bukkit|net/minecraft' \
+    "$temp_dir/verifier-jar-contents.txt"; then
+  die "verifier JAR contains a forbidden source, runtime, Multiverse, Paper, or server path"
 fi
 for required_class in \
   'net/nobu0707/legacyminingworld/geology/LegacyUndergroundPopulator.class' \
@@ -263,8 +301,21 @@ if rg -n \
     src/main/java >/dev/null; then
   die "production source uses a forbidden world, chunk, scheduler, or retained-state API"
 fi
-if rg -n -i 'multiverse' build.gradle.kts gradle.properties src/main >/dev/null; then
-  die "Phase 3B must not declare or use Multiverse-Core"
+if rg -n -i 'multiverse' gradle.properties src/main >/dev/null; then
+  die "production metadata or source must not declare or use Multiverse-Core"
+fi
+if rg -n -i \
+    -e 'implementation[[:space:]]*\([^)]*multiverse' \
+    -e 'compileOnly[[:space:]]*\([^)]*multiverse' \
+    -e 'files[[:space:]]*\([^)]*multiverse' \
+    build.gradle.kts >/dev/null; then
+  die "Gradle must not add Multiverse-Core to a compile or runtime dependency"
+fi
+if rg -n \
+    -e 'org\.mvplugins|com\.onarandombox|java\.lang\.reflect|Class\.forName|org\.bukkit\.craftbukkit|net\.minecraft' \
+    -e 'setType[[:space:]]*\(|setBlockData[[:space:]]*\(|WorldEdit|deleteWorld|java\.net\.' \
+    src/multiverseVerifier/java >/dev/null; then
+  die "test-only verifier uses a forbidden Multiverse/internal/write/network API"
 fi
 if rg -n \
     -e 'static[[:space:]]+Random[[:space:]]+[A-Za-z_][A-Za-z0-9_]*[[:space:]]*(=|;)' \
@@ -657,6 +708,8 @@ copy_log geology-world-smoke.txt
 } > "$temp_dir/ore-world-smoke.txt"
 copy_log ore-world-smoke.txt
 
+./scripts/run-multiverse-integration.sh
+
 for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
   [ -f "$CHECK_DIR/$check_name" ] || die "missing required review check log: $check_name"
 done
@@ -687,5 +740,13 @@ grep -Fq 'PASS: Phase 2B fixed-seed geology world smoke completed successfully.'
 grep -Fq 'PASS: Phase 3B fixed-seed ore world smoke completed successfully.' \
   "$CHECK_DIR/ore-world-smoke.txt" \
   || die "ore world smoke log does not contain its PASS marker"
+grep -Fq 'BUILD SUCCESSFUL' "$CHECK_DIR/multiverse-verifier-tests.txt" \
+  || die "Multiverse verifier tests did not complete successfully"
+grep -Fq 'PASS: fixed four-chunk full-height live world scan completed successfully.' \
+  "$CHECK_DIR/multiverse-world-scan.txt" \
+  || die "Multiverse live world scan log does not contain its PASS marker"
+grep -Fq 'PASS: Phase 4A Multiverse integration smoke completed successfully.' \
+  "$CHECK_DIR/multiverse-integration-smoke.txt" \
+  || die "Multiverse integration log does not contain its PASS marker"
 
 printf 'Review checks passed. Logs: %s\n' "$CHECK_DIR"

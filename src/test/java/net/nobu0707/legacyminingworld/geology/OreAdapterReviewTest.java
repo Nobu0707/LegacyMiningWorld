@@ -45,7 +45,7 @@ class OreAdapterReviewTest {
         System.out.println("concurrency: PASS");
         System.out.println("forbidden-material-pure-model: PASS");
 
-        assertEquals("0.4.0", System.getProperty("legacyminingworld.version"));
+        assertEquals("0.5.0-alpha.1", System.getProperty("legacyminingworld.version"));
         assertEquals(14, anchorCount);
         assertEquals(-7_165_395_187_979_696_007L, checksum);
         assertTrue(Files.isRegularFile(Path.of("docs/ore-paper-integration.md")));

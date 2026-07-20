@@ -12,6 +12,7 @@ readonly REQUIRED_REVIEW_CHECKS=(
   geology-adapter-tests.txt
   ore-engine-tests.txt
   ore-adapter-tests.txt
+  multiverse-verifier-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -19,7 +20,13 @@ readonly REQUIRED_REVIEW_CHECKS=(
   release-artifacts.txt
   jar-plugin-yml.txt
   jar-contents.txt
+  verifier-jar-contents.txt
   verify-built-jar-version.txt
+  multiverse-jar-inspection.txt
+  multiverse-first-boot.txt
+  multiverse-second-boot.txt
+  multiverse-world-scan.txt
+  multiverse-integration-smoke.txt
 )
 
 usage() {
@@ -178,7 +185,7 @@ done < <(git ls-files -m -d -o --exclude-standard -z)
     rg -n --hidden \
       --glob '!.git/**' --glob '!build/**' --glob '!.gradle/**' --glob '!server/**' \
       --glob '!*.jar' --glob '!*.log' --glob '!*.tar.gz' --glob '!*.zip' \
-      -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LegacyUndergroundPopulator|LegacyOreApplicator|LegacyOreMaterialAdapter|LegacyOreBlockAccess|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|LegacyOre|COAL_ORE|IRON_ORE|GOLD_ORE|REDSTONE_ORE|DIAMOND_ORE|LAPIS_ORE|DepthAverage|baseline|spread|stableSalt|featureSeed|UNDERGROUND_ORES|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|ore-smoke-anchors|Y11|Multiverse' \
+      -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LegacyUndergroundPopulator|LegacyOreApplicator|LegacyOreMaterialAdapter|LegacyOreBlockAccess|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|LegacyOre|COAL_ORE|IRON_ORE|GOLD_ORE|REDSTONE_ORE|DIAMOND_ORE|LAPIS_ORE|DepthAverage|baseline|spread|stableSalt|featureSeed|UNDERGROUND_ORES|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|ore-smoke-anchors|Y11|Multiverse|multiverse-core-5\.7\.2|mv generators|mv create|LegacyMiningWorldMultiverseVerifier|ChunkSnapshot|world UUID|autoload|worlds\.yml|multiverse-smoke|forbidden material|Y5\.\.67' \
       . || true
   else
     printf 'rg not available; review signal scan skipped.\n'

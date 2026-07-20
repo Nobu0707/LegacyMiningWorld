@@ -1,3 +1,5 @@
+import org.gradle.language.jvm.tasks.ProcessResources
+
 plugins {
     java
 }
@@ -18,6 +20,29 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+val multiverseVerifier by sourceSets.creating {
+    resources {
+        srcDir("src/test/resources")
+        include("plugin.yml", "geology-smoke-anchors.tsv", "ore-smoke-anchors.tsv")
+    }
+}
+
+val multiverseVerifierTest by sourceSets.creating {
+    compileClasspath += multiverseVerifier.output
+    runtimeClasspath += multiverseVerifier.output
+}
+
+dependencies {
+    add(multiverseVerifier.compileOnlyConfigurationName,
+        "io.papermc.paper:paper-api:26.1.2.build.69-stable")
+    add(multiverseVerifierTest.implementationConfigurationName,
+        "io.papermc.paper:paper-api:26.1.2.build.69-stable")
+    add(multiverseVerifierTest.implementationConfigurationName,
+        "org.junit.jupiter:junit-jupiter:5.13.4")
+    add(multiverseVerifierTest.runtimeOnlyConfigurationName,
+        "org.junit.platform:junit-platform-launcher")
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(25)
@@ -30,6 +55,15 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 tasks.processResources {
+    filteringCharset = "UTF-8"
+    val pluginVersion = project.version.toString()
+    inputs.property("version", pluginVersion)
+    filesMatching("plugin.yml") {
+        expand("version" to pluginVersion)
+    }
+}
+
+tasks.named<ProcessResources>(multiverseVerifier.processResourcesTaskName) {
     filteringCharset = "UTF-8"
     val pluginVersion = project.version.toString()
     inputs.property("version", pluginVersion)
@@ -111,6 +145,29 @@ tasks.register<Test>("oreAdapterTest") {
         events("passed", "skipped", "failed")
         showStandardStreams = true
     }
+}
+
+tasks.register<Test>("multiverseVerifierTest") {
+    description = "Runs the Phase 4A test-only Multiverse verifier suite."
+    group = "verification"
+    testClassesDirs = multiverseVerifierTest.output.classesDirs
+    classpath = multiverseVerifierTest.runtimeClasspath
+    useJUnitPlatform()
+    systemProperty("legacyminingworld.version", project.version.toString())
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Jar>("multiverseVerifierJar") {
+    description = "Builds the test-only Phase 4A Multiverse integration verifier."
+    group = "verification"
+    dependsOn(multiverseVerifier.classesTaskName)
+    archiveBaseName = "LegacyMiningWorld-MultiverseVerifier"
+    archiveVersion = project.version.toString()
+    from(multiverseVerifier.output)
 }
 
 tasks.jar {

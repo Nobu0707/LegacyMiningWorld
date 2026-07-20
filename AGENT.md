@@ -6,10 +6,10 @@
 - main class: net.nobu0707.legacyminingworld.LegacyMiningWorldPlugin
 - 対象: PaperMC 26.1.2 build 69 / Paper API 26.1.2.build.69-stable
 - Java: toolchain・releaseともに25
-- current version: 0.4.0
-- completed phase: Phase 3B
-- Phase 3B baseline: 02c5c82b875a7b0d5d560ff46ddd93e4b7a9fa4a / feat: add deterministic ore engine
-- Phase 3B commit subject: feat: populate legacy ores
+- current version: 0.5.0-alpha.1
+- completed phase: Phase 4A
+- Phase 4A baseline: db23362efe8265a8e491bf5432b4d461bb3e5667 / feat: populate legacy ores
+- Phase 4A commit subject: test: verify multiverse integration
 - Phase 3はpure seed/distribution engineの3AとPaper接続の3Bへ分離した。
 
 ## 規則とコマンド
@@ -18,17 +18,19 @@
 - ユーザー変更を消さず、Phase外の依存更新・機能追加・整形をしない。
 - mutable static state、共有Random、world/chunk cache、pending placement、scheduler、parallel streamを生成処理へ入れない。
 - server/、build/、調査物、JAR、logs、archivesをstageしない。
-- server/plugins/multiverse-core-5.7.2.jarはPhase 4まで使用しない。
+- server/plugins/multiverse-core-5.7.2.jarはPhase 4Aのtest-only統合スモークだけで使用する。production dependency/release JARへ入れない。
 
     ./gradlew --no-daemon clean test
     ./gradlew --no-daemon geologyEngineTest
     ./gradlew --no-daemon geologyAdapterTest
     ./gradlew --no-daemon oreEngineTest
     ./gradlew --no-daemon oreAdapterTest
+    ./gradlew --no-daemon multiverseVerifierTest
     ./gradlew --no-daemon build
+    ./gradlew --no-daemon multiverseVerifierJar
     ./scripts/run-review-checks.sh
-    ./scripts/make-review-archive.sh "feat: populate legacy ores"
-    ./scripts/make-full-review-archive.sh "feat: populate legacy ores"
+    ./scripts/make-review-archive.sh "test: verify multiverse integration"
+    ./scripts/make-full-review-archive.sh "test: verify multiverse integration"
 
 ## runtime仕様
 
@@ -83,15 +85,34 @@ seed 11652021、target chunks (-1,-1),(0,-1),(-1,0),(0,0)。
 - Y11 anchors: COAL (-9,11,-10)、IRON (8,11,0)、GOLD (-9,11,14) と (2,11,13)、REDSTONE (-16,11,1) と (13,11,1)、DIAMOND (14,11,-4) と (13,11,-4)
 - LAPIS anchors: (-4,16,-10)、(-4,17,-10)
 - Paper smoke: Paper SHA-256 d30fae0c74092b10855f0412ca6b265c60301a013d34bc28a2a41bf5682dd80b、geology 10/10、ore 14/14、Y11 five materials、X_COAL、Z_IRON、terrain protection、fatal scan、source hashすべてPASS
-- Paper smoke plugins: LegacyMiningWorld-0.4.0.jarだけ。Multiverse copied NO
+- 通常Paper回帰smoke plugins: LegacyMiningWorld-0.5.0-alpha.1.jarだけ。Multiverse/verifier copied NO
 
 anchorはruntime探索・自動更新禁止。release JARへ含めず、review archiveには含める。
+
+## Phase 4A Multiverse統合
+
+- Multiverse JAR: name `Multiverse-Core`、version 5.7.2、main `org.mvplugins.multiverse.core.MultiverseCore`、metadata `plugin.yml`、4,454,619 bytes、SHA-256 `574862aa3062af53957fe845de110a386f886445366836c8c63712e11d697400`。
+- 正確な列挙commandは`mv generators list`。`LegacyMiningWorld`を列挙した。
+- create commandは`mv create legacy_mining_mv_smoke normal --seed 11652021 --generator LegacyMiningWorld --no-adjust-spawn`。worldはNORMAL、seed 11652021、generator `LegacyMiningWorld`、autoload true。
+- test-only mainは`net.nobu0707.legacyminingworld.integration.MultiverseIntegrationVerifierPlugin`。source setは`multiverseVerifier`、JARは`LegacyMiningWorld-MultiverseVerifier-0.5.0-alpha.1.jar`。Paper APIだけでcompileし、Multiverse API、write、NMS、reflection、networkを使わない。
+- console commandは`lmwit verify legacy_mining_mv_smoke 11652021`。chunks `(-1,-1),(0,-1),(-1,0),(0,0)`を同期loadし、`ChunkSnapshot`でminY -64からmaxYExclusive 320まで393,216 blockを読む。
+- clean smoke例UUID `45092815-29d9-4568-b73c-45eac73d7480`はfirst/second bootで一致。clean directory再作成ごとにUUID自体は新規になる。
+- Bukkit永続spawn blockは`(0,71,0)`、generator fixed spawnは`(0.5,71.0,0.5)`。Paper公開API上の表現差として両方を検査する。
+- geology anchors 10/10、ore anchors 14/14、X pairs `X_GRAVEL`/`X_COAL`、Z pairs `Z_GRANITE`/`Z_IRON`。
+- Y=11はSTONE 733 / DIRT 47 / GRAVEL 19 / GRANITE 76 / DIORITE 34 / ANDESITE 85 / COAL 6 / IRON 5 / GOLD 8 / REDSTONE 7 / DIAMOND 4。
+- Y=5..67 live countsはSTONE 51,999 / DIRT 995 / GRAVEL 890 / GRANITE 3,013 / DIORITE 2,867 / ANDESITE 3,279 / COAL 860 / IRON 438 / GOLD 41 / REDSTONE 94 / DIAMOND 17 / LAPIS 19。
+- Y=5..67 chunk checksumsは`(-1,-1)=-4081461885369063153`、`(0,-1)=-6459175142289166354`、`(-1,0)=4995189412391713686`、`(0,0)=124016103469303630`、combined `-7305870198059528782`。
+- Y<0 AIR 65,536、Y=0 BEDROCK 1,024、Y=1..4はBEDROCK/非BEDROCK双方ありで許可Materialだけ、Y=68..69 DIRT 2,048、Y=70 GRASS 1,024、Y>=71 AIR 254,976。
+- 禁止Materialと許可外非AIRは4chunk全高で0。Y=0/11/70/100のbiome 4,096点はすべてPLAINS。
+- first bootでcreate/verify/save/stop後、同じsmoke directoryのsecond bootがworlds.ymlから自動loadした。UUID、seed、generator、spawn、anchors、counts、checksum、forbidden、biomeが一致。
+- Paper 26の実worldは`world/dimensions/minecraft/legacy_mining_mv_smoke/`。region 4ファイル、Paper UUID metadata、共有`world/level.dat`、Multiverse `worlds.yml`を検査する。
+- production Javaコード変更なし。production `plugin.yml`へMultiverse depend/softdependなし。release JARへverifier、anchor TSV、Multiverse/Paper classなし。通常Paperスモークはrelease JARだけで回帰PASS。
 
 ## 保証範囲
 
 同じplugin version・world seed・target chunkに対する決定性、1.16.5設定・seed式・分布・形状、target ownershipを保証する。Vanilla heightmap早期終了、全decoration pipeline、noise地形、洞窟等は再現しないため、Minecraft 1.16.5の同一seedとblock座標完全一致は保証しない。
 
-Paper smokeはLegacyMiningWorld-0.4.0.jarだけを使い、4 chunksをforce-loadした。地形、geology 10/10、ore 14/14、Y11主要5鉱石、X/Z pair、fatal scan、source Paper/EULA hash、Multiverse copied NOがPASS。Phase 3Bの禁止materialはpure modelで4chunk全体を厳密に0確認し、Paperではanchor周辺と代表座標だけを確認した。Paper 4chunk完全走査とは報告しない。
+通常Paper回帰smokeはLegacyMiningWorld-0.5.0-alpha.1.jarだけを使い、4 chunksをforce-loadする。地形、geology 10/10、ore 14/14、Y11主要5鉱石、X/Z pair、fatal scan、source Paper/EULA hash、Multiverse copied NOを維持する。これとは別のPhase 4A Multiverse smokeでtest-only verifierを使い、実worldの4chunk全高を完全走査する。4chunk完全走査をPhase 4Bの大量chunk走査とは報告しない。
 
 ## review重点
 
@@ -102,8 +123,11 @@ Paper smokeはLegacyMiningWorld-0.4.0.jarだけを使い、4 chunksをforce-load
 - stable first-wins、target外書込なし、parallel/cache/shared mutable stateなし。
 - geology golden、ore engine golden、combined golden、Y11、14 anchors、境界pair。
 - release JARにtest resources/Multiverse/external libraryなし。
-- archive前にfeat: populate legacy oresでコミットし、作成後もworking tree clean。
+- verifierはtest-only、console/read-only、release JARと分離。
+- `mv generators list`、Multiverse command create、first/second boot、autoload、UUID/checksum一致。
+- Y=5..67 golden、4chunk全高禁止Material 0、PLAINS 4,096点。
+- archive前に`test: verify multiverse integration`でコミットし、作成後もworking tree clean。
 
-## Phase 4
+## Phase 4B
 
-server/plugins/multiverse-core-5.7.2.jarを初めて使用し、/mv generators、/mv create、生成world検査、大量chunk、禁止block完全走査、distribution report、性能、決定性・再生成一致、release candidate化を行う。
+Phase 4Aの4chunk完全走査を拡張し、大量chunk、MCA/NBTまたは同等手段の大規模完全走査、distribution report、性能、2つのclean world間の決定的再生成一致、release candidate化を行う。Phase 4Aではこれらを完了済みと扱わない。
