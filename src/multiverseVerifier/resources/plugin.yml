@@ -4,11 +4,11 @@ main: net.nobu0707.legacyminingworld.integration.MultiverseIntegrationVerifierPl
 api-version: '26.1.2'
 load: POSTWORLD
 authors: [nobu0707]
-description: Test-only Phase 4A verifier; never ship this JAR as a release artifact
+description: Test-only Phase 4A and Phase 4B1 verifier; never ship this JAR as a release artifact
 depend:
   - LegacyMiningWorld
   - Multiverse-Core
 commands:
   lmwit:
-    description: Console-only read-only Multiverse integration verification
-    usage: lmwit verify <worldName> <expectedSeed>
+    description: Console-only Multiverse integration and deterministic grid verification
+    usage: lmwit <verify|verify-vanilla-world|grid|grid-status|grid-cancel> ...

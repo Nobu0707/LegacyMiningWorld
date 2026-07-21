@@ -40,4 +40,12 @@ final class VerifierSupport {
         }
         return Map.copyOf(values);
     }
+
+    static String safeReason(Throwable throwable) {
+        String message = throwable.getMessage();
+        if (message == null || message.isBlank()) {
+            return throwable.getClass().getSimpleName();
+        }
+        return message.replaceAll("[^A-Za-z0-9_.-]", "_");
+    }
 }

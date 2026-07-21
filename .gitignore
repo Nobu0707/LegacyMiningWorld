@@ -7,5 +7,7 @@ server/
 *.log
 *.tar.gz
 *.zip
+__pycache__/
+*.pyc
 legacyminingworld-review-latest.tar.gz
 legacyminingworld-full-review-latest.tar.gz

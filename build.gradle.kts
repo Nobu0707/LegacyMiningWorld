@@ -23,7 +23,12 @@ dependencies {
 val multiverseVerifier by sourceSets.creating {
     resources {
         srcDir("src/test/resources")
-        include("plugin.yml", "geology-smoke-anchors.tsv", "ore-smoke-anchors.tsv")
+        include(
+            "plugin.yml",
+            "geology-smoke-anchors.tsv",
+            "ore-smoke-anchors.tsv",
+            "large-scale-grid.properties"
+        )
     }
 }
 
@@ -73,7 +78,9 @@ tasks.named<ProcessResources>(multiverseVerifier.processResourcesTaskName) {
 }
 
 tasks.test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("large-scale-model")
+    }
     systemProperty("legacyminingworld.version", project.version.toString())
 }
 
@@ -83,7 +90,7 @@ tasks.register<Test>("geologyEngineTest") {
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
     useJUnitPlatform {
-        excludeTags("geology-adapter", "ore-adapter")
+        excludeTags("geology-adapter", "ore-adapter", "large-scale-model")
     }
     filter {
         includeTestsMatching("net.nobu0707.legacyminingworld.geology.*")
@@ -148,7 +155,7 @@ tasks.register<Test>("oreAdapterTest") {
 }
 
 tasks.register<Test>("multiverseVerifierTest") {
-    description = "Runs the Phase 4A test-only Multiverse verifier suite."
+    description = "Runs the Phase 4A/4B1 test-only Multiverse verifier suite."
     group = "verification"
     testClassesDirs = multiverseVerifierTest.output.classesDirs
     classpath = multiverseVerifierTest.runtimeClasspath
@@ -161,8 +168,34 @@ tasks.register<Test>("multiverseVerifierTest") {
     }
 }
 
+tasks.register<Test>("largeScaleModelTest") {
+    description = "Builds the deterministic Phase 4B1 1,089-chunk pure-model reports."
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("large-scale-model")
+    }
+    systemProperty("legacyminingworld.version", project.version.toString())
+    systemProperty(
+        "legacyminingworld.largeScaleReportDir",
+        layout.buildDirectory.dir("large-scale-model/reports").get().asFile.absolutePath
+    )
+    outputs.upToDateWhen { false }
+    doFirst {
+        delete(layout.buildDirectory.dir("large-scale-model/reports"))
+    }
+    filter {
+        isFailOnNoMatchingTests = true
+    }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
 tasks.register<Jar>("multiverseVerifierJar") {
-    description = "Builds the test-only Phase 4A Multiverse integration verifier."
+    description = "Builds the test-only Phase 4A/4B1 Multiverse integration verifier."
     group = "verification"
     dependsOn(multiverseVerifier.classesTaskName)
     archiveBaseName = "LegacyMiningWorld-MultiverseVerifier"

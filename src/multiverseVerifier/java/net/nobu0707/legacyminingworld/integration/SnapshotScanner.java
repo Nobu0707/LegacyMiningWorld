@@ -65,6 +65,11 @@ final class SnapshotScanner {
             Material.DEEPSLATE_LAPIS_ORE,
             Material.DEEPSLATE_EMERALD_ORE,
             Material.DEEPSLATE_COPPER_ORE,
+            Material.SPAWNER,
+            Material.CHEST,
+            Material.BARREL,
+            Material.COBBLESTONE,
+            Material.MOSSY_COBBLESTONE,
             Material.NETHER_GOLD_ORE,
             Material.NETHER_QUARTZ_ORE,
             Material.ANCIENT_DEBRIS);

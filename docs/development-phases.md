@@ -74,13 +74,24 @@ Multiverse-CoreはPhase 3Bでも依存・コピー・実行していない。
 - production Multiverse依存なし、release JARとtest verifier JARを分離
 - 通常Paper単体スモークを回帰
 
-## Phase 4B — release candidate（未実装）
+## Phase 4B1 — 大規模生成検証（完了、version 0.6.0-alpha.1）
 
-- 大量chunk生成
-- MCA/NBTまたは同等手段による大規模完全走査
-- distribution report
-- performance測定
-- 2つのclean worldを使う決定的再生成比較
-- world save/reload robustnessの範囲拡大
-- release artifact最終化、version 1.0.0-rc.1候補
+- 追跡specでX/Z=-16..16、33×33=1,089chunkを固定
+- A1 clean/forward、A2 restart/existing、B1 separate clean/reverse
+- 各runでY=-64..319の107,053,056 blockを`ChunkSnapshot`完全走査
+- per-chunk Y=5..67/full checksum、Material count、Y=0..67 ore histogramをA1/A2/B1で完全比較
+- pure modelとliveをY=5..67の17,563,392 blockでexact比較
+- distribution、per-chunk statistics、禁止block 0、PLAINS 1,115,136件
+- MCA region headerでtarget 1,089chunk missing 0とA1/A2/B1 presence set一致
+- `-Xms512M -Xmx2G`、wall clock、throughput、loaded chunk、maximum RSSを記録
+- default worldがLegacy generator/biome providerを使わないことを公開APIとworlds.yml entryで確認
+- production Java変更なし、通常PaperとPhase 4A Multiverse smokeを回帰
+
+## Phase 4B2 — release candidate（未実装）
+
+- final code audit
+- release candidate version（1.0.0-rc.1候補）
+- final operator documentation
+- release packageと配布物の最終化
+- fresh repositoryでの最終smoke
 - ライセンスはユーザー決定まで未選択を維持

@@ -18,6 +18,9 @@ readonly REQUIRED_REVIEW_CHECKS=(
   ore-engine-tests.txt
   ore-adapter-tests.txt
   multiverse-verifier-tests.txt
+  large-scale-model-tests.txt
+  large-scale-verifier-tests.txt
+  region-header-tool-tests.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -32,6 +35,25 @@ readonly REQUIRED_REVIEW_CHECKS=(
   multiverse-second-boot.txt
   multiverse-world-scan.txt
   multiverse-integration-smoke.txt
+  large-scale-a1-boot.txt
+  large-scale-a2-boot.txt
+  large-scale-b1-boot.txt
+  large-scale-world-a1.txt
+  large-scale-world-a2.txt
+  large-scale-world-b1.txt
+  large-scale-determinism.txt
+  large-scale-distribution.txt
+  large-scale-performance.txt
+  large-scale-region-headers.txt
+  large-scale-validation.txt
+  large-scale-expected-chunks.txt
+  large-scale-a1-chunks.txt
+  large-scale-a2-chunks.txt
+  large-scale-b1-chunks.txt
+  large-scale-expected-ore-heights.txt
+  large-scale-a1-ore-heights.txt
+  large-scale-a2-ore-heights.txt
+  large-scale-b1-ore-heights.txt
 )
 
 die() {
@@ -99,7 +121,7 @@ run_gradle_check gradle-test.txt clean test
   printf '\nplugin-version: %s\n' "$expected_version"
   printf 'test-task: geologyEngineTest\n'
   printf 'test-filter: net.nobu0707.legacyminingworld.geology.* excluding geology-adapter tag\n\n'
-  ./gradlew --no-daemon geologyEngineTest
+  ./gradlew --no-daemon geologyEngineTest || exit 1
   printf '\nPASS: Phase 2A geology engine tests completed successfully.\n'
 } > "$temp_dir/geology-engine-tests.txt" 2>&1 || {
   copy_log geology-engine-tests.txt
@@ -119,7 +141,7 @@ copy_log geology-engine-tests.txt
   printf 'test-filter: JUnit tag geology-adapter\n'
   printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'fixed-target-chunk: 0,0\n\n'
-  ./gradlew --no-daemon geologyAdapterTest
+  ./gradlew --no-daemon geologyAdapterTest || exit 1
   printf '\nmapping-tests: PASS\n'
   printf 'replacement-order-tests: PASS\n'
   printf 'height-region-tests: PASS\n'
@@ -149,7 +171,7 @@ copy_log geology-adapter-tests.txt
   printf 'official-research-document: docs/vanilla-1.16.5-ores.md EXISTS\n'
   printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'fixed-target-chunk: 0,0\n\n'
-  ./gradlew --no-daemon oreEngineTest
+  ./gradlew --no-daemon oreEngineTest || exit 1
   printf '\nfeature-settings: PASS\n'
   printf 'total-attempts: 52 PASS\n'
   printf 'stable-salts: 5..10 PASS\n'
@@ -185,7 +207,7 @@ copy_log ore-engine-tests.txt
   printf 'test-filter: JUnit tag ore-adapter\n'
   printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'fixed-target-chunks: %s\n\n' "$FORCE_LOADED_CHUNKS"
-  ./gradlew --no-daemon oreAdapterTest
+  ./gradlew --no-daemon oreAdapterTest || exit 1
   printf '\nmaterial-adapter: PASS\n'
   printf 'replacement: PASS\n'
   printf 'legacy-y-range: PASS 0..67\n'
@@ -209,6 +231,34 @@ copy_log ore-engine-tests.txt
 copy_log ore-adapter-tests.txt
 
 run_gradle_check multiverse-verifier-tests.txt multiverseVerifierTest
+run_gradle_check large-scale-verifier-tests.txt multiverseVerifierTest
+
+{
+  printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'java-version:\n'; java -version 2>&1
+  printf '\ngradle-version:\n'; ./gradlew --version
+  printf '\nplugin-version: %s\n' "$expected_version"
+  printf 'spec: src/test/resources/large-scale-grid.properties\n'
+  printf 'chunks: 1089\nblocks-y5-67: 17563392\n\n'
+  ./gradlew --no-daemon largeScaleModelTest || exit 1
+  printf '\nPASS: Phase 4B1 large-scale pure-model reports generated.\n'
+} > "$temp_dir/large-scale-model-tests.txt" 2>&1 || {
+  copy_log large-scale-model-tests.txt
+  cat "$temp_dir/large-scale-model-tests.txt" >&2
+  die "large-scale pure-model test failed"
+}
+copy_log large-scale-model-tests.txt
+
+{
+  printf 'python-version: '; python3 --version
+  python3 -m unittest scripts/test_inspect_region_headers.py -v || exit 1
+  printf 'PASS: region header inspection tool tests completed.\n'
+} > "$temp_dir/region-header-tool-tests.txt" 2>&1 || {
+  copy_log region-header-tool-tests.txt
+  cat "$temp_dir/region-header-tool-tests.txt" >&2
+  die "region header inspection tool tests failed"
+}
+copy_log region-header-tool-tests.txt
 
 run_gradle_check gradle-build.txt build
 ./gradlew --no-daemon multiverseVerifierJar >> "$temp_dir/gradle-build.txt" 2>&1 || {
@@ -235,7 +285,7 @@ if grep -Eiq '(^|/)(server|logs?)/|\.tar\.gz$|\.zip$|(^|/)src/test/|(^|/)[^/]*Te
     "$temp_dir/jar-contents.txt"; then
   die "release JAR contains a forbidden runtime, archive, log, or test path"
 fi
-if grep -Eiq 'minecraft-1\.16\.5|server-mappings|decompil|geology-smoke-anchors|ore-smoke-anchors|multiverse' \
+if grep -Eiq 'minecraft-1\.16\.5|server-mappings|decompil|geology-smoke-anchors|ore-smoke-anchors|large-scale-grid|multiverse' \
     "$temp_dir/jar-contents.txt"; then
   die "release JAR contains a research, test-anchor, or Multiverse artifact"
 fi
@@ -246,6 +296,7 @@ for required_path in \
   'plugin.yml' \
   'geology-smoke-anchors.tsv' \
   'ore-smoke-anchors.tsv' \
+  'large-scale-grid.properties' \
   'net/nobu0707/legacyminingworld/integration/MultiverseIntegrationVerifierPlugin.class' \
   'net/nobu0707/legacyminingworld/integration/SnapshotScanner.class'; do
   grep -Fxq "$required_path" "$temp_dir/verifier-jar-contents.txt" \
@@ -709,6 +760,7 @@ copy_log geology-world-smoke.txt
 copy_log ore-world-smoke.txt
 
 ./scripts/run-multiverse-integration.sh
+./scripts/run-large-scale-validation.sh
 
 for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
   [ -f "$CHECK_DIR/$check_name" ] || die "missing required review check log: $check_name"
@@ -748,5 +800,14 @@ grep -Fq 'PASS: fixed four-chunk full-height live world scan completed successfu
 grep -Fq 'PASS: Phase 4A Multiverse integration smoke completed successfully.' \
   "$CHECK_DIR/multiverse-integration-smoke.txt" \
   || die "Multiverse integration log does not contain its PASS marker"
+grep -Fq 'PASS: Phase 4B1 large-scale pure-model reports generated.' \
+  "$CHECK_DIR/large-scale-model-tests.txt" \
+  || die "large-scale model review log does not contain its PASS marker"
+grep -Fq 'PASS: region header inspection tool tests completed.' \
+  "$CHECK_DIR/region-header-tool-tests.txt" \
+  || die "region header tool review log does not contain its PASS marker"
+grep -Fq 'PASS: Phase 4B1 large-scale validation completed.' \
+  "$CHECK_DIR/large-scale-validation.txt" \
+  || die "large-scale validation log does not contain its PASS marker"
 
 printf 'Review checks passed. Logs: %s\n' "$CHECK_DIR"

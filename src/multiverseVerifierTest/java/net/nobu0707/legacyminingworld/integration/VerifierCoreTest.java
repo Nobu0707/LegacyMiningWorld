@@ -20,7 +20,7 @@ class VerifierCoreTest {
         assertFalse(SnapshotScanner.Y_ONE_TO_FOUR_ALLOWED.contains(Material.GRASS_BLOCK));
         assertTrue(SnapshotScanner.FORBIDDEN.contains(Material.WATER));
         assertTrue(SnapshotScanner.FORBIDDEN.contains(Material.DEEPSLATE_DIAMOND_ORE));
-        assertEquals(20, SnapshotScanner.FORBIDDEN.size());
+        assertEquals(25, SnapshotScanner.FORBIDDEN.size());
         assertEquals(63 * 256 * 4, SnapshotScanner.EXPECTED_Y_FIVE_TO_SIXTY_SEVEN
                 .values().stream().mapToInt(Integer::intValue).sum());
         assertEquals(-7_305_870_198_059_528_782L,
@@ -92,7 +92,7 @@ class VerifierCoreTest {
         assertTrue(descriptor.contains("name: LegacyMiningWorldMultiverseVerifier"));
         assertTrue(descriptor.contains("version: "
                 + System.getProperty("legacyminingworld.version")));
-        assertTrue(descriptor.contains("description: Test-only Phase 4A verifier"));
+        assertTrue(descriptor.contains("description: Test-only Phase 4A and Phase 4B1 verifier"));
         assertTrue(descriptor.contains("  - LegacyMiningWorld"));
         assertTrue(descriptor.contains("  - Multiverse-Core"));
         assertThrows(ClassNotFoundException.class, () -> Class.forName(
