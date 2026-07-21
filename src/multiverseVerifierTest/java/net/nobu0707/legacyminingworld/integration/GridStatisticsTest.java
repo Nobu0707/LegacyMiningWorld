@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@Tag("large-scale-verifier")
 class GridStatisticsTest {
     @Test
     void calculatesStablePopulationStatisticsAndLocaleRootFormatting() {

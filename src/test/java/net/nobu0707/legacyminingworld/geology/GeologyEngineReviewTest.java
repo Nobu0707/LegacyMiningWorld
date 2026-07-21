@@ -28,7 +28,7 @@ class GeologyEngineReviewTest {
         System.out.println("thread-safety-test: PASS (LegacyGeologyPlannerTest)");
         System.out.println("source-research-document: docs/vanilla-1.16.5-geology.md");
 
-        assertEquals("0.6.0-alpha.1", System.getProperty("legacyminingworld.version"));
+        assertEquals("1.0.0-rc.1", System.getProperty("legacyminingworld.version"));
         assertTrue(Files.isRegularFile(Path.of("docs/vanilla-1.16.5-geology.md")));
         assertEquals(5_564, placements.size());
         assertEquals(-4_572_519_745_665_027_215L, checksum);

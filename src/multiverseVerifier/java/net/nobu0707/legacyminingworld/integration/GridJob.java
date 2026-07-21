@@ -28,7 +28,7 @@ final class GridJob implements Runnable {
     private int generatedBeforeScan;
     private int newlyGenerated;
     private int missingExisting;
-    private int unloadFailures;
+    private int immediateUnloadRejected;
     private int maximumLoadedChunks;
     private long prepareNanos;
     private long scanNanos;
@@ -93,7 +93,7 @@ final class GridJob implements Runnable {
         }
         if (!generated) newlyGenerated++;
         if (!world.unloadChunk(key.x(), key.z(), mode == GridMode.GENERATE)) {
-            unloadFailures++;
+            immediateUnloadRejected++;
         }
         index++;
         if (index == preparationOrder.size()) {
@@ -118,7 +118,7 @@ final class GridJob implements Runnable {
         maximumLoadedChunks = Math.max(maximumLoadedChunks, world.getLoadedChunks().length);
         accumulator.scan(chunk.getChunkSnapshot(true, true, false, false), key);
         if (!world.unloadChunk(key.x(), key.z(), mode == GridMode.GENERATE)) {
-            unloadFailures++;
+            immediateUnloadRejected++;
         }
         index++;
         if (index % 100 == 0 || index == canonicalOrder.size()) {
@@ -139,7 +139,7 @@ final class GridJob implements Runnable {
                 generatedBeforeScan,
                 newlyGenerated,
                 missingExisting,
-                unloadFailures,
+                immediateUnloadRejected,
                 maximumLoadedChunks);
         metrics = writer.write(reportId, accumulator, metrics);
         state = State.FINISHED;
@@ -155,7 +155,7 @@ final class GridJob implements Runnable {
                 + " unknown=" + accumulator.unknownNonAir()
                 + " biomes=" + accumulator.biomeChecks()
                 + " newlyGenerated=" + newlyGenerated
-                + " unloadFailures=" + unloadFailures
+                + " immediateUnloadRejected=" + immediateUnloadRejected
                 + " elapsedNanos=" + metrics.totalNanos());
         release.run();
     }

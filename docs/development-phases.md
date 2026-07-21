@@ -87,11 +87,19 @@ Multiverse-CoreはPhase 3Bでも依存・コピー・実行していない。
 - default worldがLegacy generator/biome providerを使わないことを公開APIとworlds.yml entryで確認
 - production Java変更なし、通常PaperとPhase 4A Multiverse smokeを回帰
 
-## Phase 4B2 — release candidate（未実装）
+## Phase 4B2 — release candidate（完了、version 1.0.0-rc.1）
 
-- final code audit
-- release candidate version（1.0.0-rc.1候補）
-- final operator documentation
-- release packageと配布物の最終化
-- fresh repositoryでの最終smoke
-- ライセンスはユーザー決定まで未選択を維持
+- production codeの最終public API、thread safety、determinism、ownership、Material安全性監査
+- 全Java sourceの`-Xlint:all -Werror`コンパイルとdependency監査
+- production/verifier JARの二重clean buildによる再現可能性検証
+- canonicalなrelease package、SHA256SUMS、展開自己検査、二重生成一致
+- commit済みtracked sourceだけを使うclean-room full regression
+- CHANGELOG、導入、運用、release candidate、README、引き継ぎ文書の最終化
+- release candidate化。ライセンスは未選択で、stable/tag/publishは未実施
+
+## Phase 5 — stable promotion（候補、未実装）
+
+- ユーザー実機受入試験と長時間運用確認
+- ライセンス決定
+- 最終version `1.0.0`とrelease notes確定
+- 必要に応じたtag/publish（別承認）

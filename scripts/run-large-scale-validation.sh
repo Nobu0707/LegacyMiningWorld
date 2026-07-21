@@ -10,7 +10,8 @@ readonly RUN_B_DIR="build/large-scale-smoke-b"
 readonly WORLD_NAME="legacy_mining_scale"
 readonly FIXED_SEED="11652021"
 readonly EXPECTED_VERSION="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n 1)"
-readonly RELEASE_JAR="build/libs/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
+readonly BUILD_RELEASE_JAR="build/libs/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
+readonly RELEASE_JAR="build/release/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
 readonly VERIFIER_JAR="build/libs/LegacyMiningWorld-MultiverseVerifier-${EXPECTED_VERSION}.jar"
 readonly CREATE_COMMAND="mv create ${WORLD_NAME} normal --seed ${FIXED_SEED} --generator LegacyMiningWorld --no-adjust-spawn"
 readonly SERVER_TIMEOUT_SECONDS=1200
@@ -317,9 +318,10 @@ run_boot() {
 }
 
 mkdir -p "$CHECK_DIR"
-for required in "$PAPER_JAR" "$EULA_FILE" "$MULTIVERSE_JAR" "$RELEASE_JAR" "$VERIFIER_JAR"; do
+for required in "$PAPER_JAR" "$EULA_FILE" "$MULTIVERSE_JAR" "$BUILD_RELEASE_JAR" "$RELEASE_JAR" "$VERIFIER_JAR"; do
   [ -r "$required" ] || die "missing required file: $required"
 done
+cmp "$BUILD_RELEASE_JAR" "$RELEASE_JAR" || die "packaged/build release JAR mismatch"
 [ -x /usr/bin/time ] || die "/usr/bin/time is required"
 grep -Eq '^eula=true[[:space:]]*$' "$EULA_FILE" || die "$EULA_FILE must contain eula=true"
 paper_sha="$(sha256sum "$PAPER_JAR" | awk '{print $1}')"
@@ -416,7 +418,7 @@ b1_uid="$(extract_marker_value "$CHECK_DIR/large-scale-b1-boot.txt" 'LMW_GRID_PA
       "$(du -sb "$world/region" | awk '{print $1}')" \
       "$(find "$world/region" -maxdepth 1 -type f -name '*.mca' | wc -l)"
   done
-  printf '\nunload-observation: unloadChunk returned false for each immediate request; maximumLoadedChunks=1 and the next tick started without retained target chunks.\n'
+  printf '\nimmediateUnloadRejected-observation: unloadChunk returned false for each immediate test-only request; this is a Paper ticket-lifecycle observation, not a production generator failure. maximumLoadedChunks=1 and the next tick started without retained target chunks.\n'
   printf 'PASS: performance and maximum RSS captured without fixed throughput threshold.\n'
 } > "$CHECK_DIR/large-scale-performance.txt"
 

@@ -97,6 +97,6 @@ first bootでcreate、verify、`save-all`、`stop`を行い、同じ`build/multi
 
 Paper 26はcustom dimensionを従来のserver root直下の別worldではなく、`world/dimensions/minecraft/legacy_mining_mv_smoke/`へ保存する。この配下に4対象region fileとPaper UUID `metadata.dat`が存在し、共有world rootに`level.dat`が存在する。Multiverseの`plugins/Multiverse-Core/worlds.yml`にはgenerator `LegacyMiningWorld`、environment `normal`、seed `11652021`、`auto-load: true`が保存された。production pluginはこのconfigを読み書きしない。
 
-## Phase 4B1で完了した拡張
+## Phase 4B1/4B2で完了した拡張
 
-Phase 4Aは固定4チャンクの全高完全走査と同一保存worldの再読込までだった。Phase 4B1/version 0.6.0-alpha.1で1,089chunk、MCA header、distribution、performance、別clean worldのforward/reverse再生成比較を完了した。詳細は`docs/large-scale-validation.md`を参照する。release candidate化はPhase 4B2へ持ち越す。
+Phase 4Aは固定4チャンクの全高完全走査と同一保存worldの再読込までだった。Phase 4B1/version 0.6.0-alpha.1で1,089chunk、MCA header、distribution、performance、別clean worldのforward/reverse再生成比較を完了した。Phase 4B2/version 1.0.0-rc.1では同じ検証をpackage JARとclean-roomで回帰し、production Multiverse依存0とtest-only verifierの非配布を最終監査した。詳細は`docs/large-scale-validation.md`を参照する。

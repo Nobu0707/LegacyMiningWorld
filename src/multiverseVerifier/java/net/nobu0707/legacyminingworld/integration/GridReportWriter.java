@@ -52,7 +52,8 @@ final class GridReportWriter {
         GridMetrics measured = new GridMetrics(
                 metrics.totalNanos() + reportNanos, metrics.prepareNanos(), metrics.scanNanos(),
                 reportNanos, metrics.generatedBeforeScan(),
-                metrics.newlyGenerated(), metrics.missingExisting(), metrics.unloadFailures(),
+                metrics.newlyGenerated(), metrics.missingExisting(),
+                metrics.immediateUnloadRejected(),
                 metrics.maximumLoadedChunks());
         writeAtomic(reportId + "-measurement.txt", measurement(result, measured));
         return measured;
@@ -161,7 +162,7 @@ final class GridReportWriter {
                 "totalSeconds=%.3f%nprepareSeconds=%.3f%nscanSeconds=%.3f%n"
                 + "reportSeconds=%.3f%nchunksPerSecond=%.3f%nblocksPerSecond=%.3f%n"
                 + "generatedBeforeScan=%d%nnewlyGenerated=%d%nmissingExisting=%d%n"
-                + "unloadFailures=%d%nmaximumLoadedChunks=%d%n"
+                + "immediateUnloadRejected=%d%nmaximumLoadedChunks=%d%n"
                 + "jvmMaxHeapBytes=%d%n",
                 seconds,
                 metrics.prepareNanos() / 1_000_000_000.0,
@@ -172,7 +173,7 @@ final class GridReportWriter {
                 metrics.generatedBeforeScan(),
                 metrics.newlyGenerated(),
                 metrics.missingExisting(),
-                metrics.unloadFailures(),
+                metrics.immediateUnloadRejected(),
                 metrics.maximumLoadedChunks(),
                 Runtime.getRuntime().maxMemory());
     }

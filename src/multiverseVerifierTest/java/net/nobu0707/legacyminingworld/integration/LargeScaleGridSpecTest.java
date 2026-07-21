@@ -8,8 +8,10 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
+@Tag("large-scale-verifier")
 class LargeScaleGridSpecTest {
     private static final String VALID = """
             worldName=legacy_mining_scale

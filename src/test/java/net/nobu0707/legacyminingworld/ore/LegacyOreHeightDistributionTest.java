@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
@@ -92,8 +91,9 @@ class LegacyOreHeightDistributionTest {
     }
 
     private static final class SequenceRandom extends Random {
-        private final Deque<Integer> values;
-        private final List<Integer> bounds = new ArrayList<>();
+        private static final long serialVersionUID = 1L;
+        private final ArrayDeque<Integer> values;
+        private final ArrayList<Integer> bounds = new ArrayList<>();
 
         private SequenceRandom(int... values) {
             this.values = new ArrayDeque<>();

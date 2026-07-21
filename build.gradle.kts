@@ -57,6 +57,12 @@ java {
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.release = 25
+    options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
+}
+
+tasks.withType<Jar>().configureEach {
+    isPreserveFileTimestamps = false
+    isReproducibleFileOrder = true
 }
 
 tasks.processResources {
@@ -155,11 +161,35 @@ tasks.register<Test>("oreAdapterTest") {
 }
 
 tasks.register<Test>("multiverseVerifierTest") {
-    description = "Runs the Phase 4A/4B1 test-only Multiverse verifier suite."
+    description = "Runs the Phase 4A test-only Multiverse verifier suite."
     group = "verification"
     testClassesDirs = multiverseVerifierTest.output.classesDirs
     classpath = multiverseVerifierTest.runtimeClasspath
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("large-scale-verifier")
+    }
+    filter {
+        isFailOnNoMatchingTests = true
+    }
+    systemProperty("legacyminingworld.version", project.version.toString())
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "skipped", "failed")
+        showStandardStreams = true
+    }
+}
+
+tasks.register<Test>("largeScaleVerifierTest") {
+    description = "Runs the Phase 4B1 large-scale verifier parser and reporting suite."
+    group = "verification"
+    testClassesDirs = multiverseVerifierTest.output.classesDirs
+    classpath = multiverseVerifierTest.runtimeClasspath
+    useJUnitPlatform {
+        includeTags("large-scale-verifier")
+    }
+    filter {
+        isFailOnNoMatchingTests = true
+    }
     systemProperty("legacyminingworld.version", project.version.toString())
     outputs.upToDateWhen { false }
     testLogging {
@@ -195,7 +225,7 @@ tasks.register<Test>("largeScaleModelTest") {
 }
 
 tasks.register<Jar>("multiverseVerifierJar") {
-    description = "Builds the test-only Phase 4A/4B1 Multiverse integration verifier."
+    description = "Builds the test-only Phase 4A/4B1/4B2 Multiverse integration verifier."
     group = "verification"
     dependsOn(multiverseVerifier.classesTaskName)
     archiveBaseName = "LegacyMiningWorld-MultiverseVerifier"

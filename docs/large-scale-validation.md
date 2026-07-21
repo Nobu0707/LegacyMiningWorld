@@ -25,7 +25,7 @@ test-only verifierは`lmwit grid`、`grid-status`、`grid-cancel`、`verify-vani
 
 jobは2段階で処理する。第1段階は指定されたforward/reverse順で1tickに1chunkを生成または既存確認する。第2段階はchecksumの正規順を生成順から独立させるため、常にZ昇順・X昇順で1tickに1chunkの`ChunkSnapshot`を取得・走査する。snapshotは1個だけ保持し、保存するのは1,089件の小さなchunk集計である。全snapshotや全block配列は保持しない。
 
-本環境では`World#unloadChunk`が各処理直後にfalseを返したため2段階合計2,178件を記録した。一方、次tick開始時には対象chunkが残らず、取得直後を含むmaximum loaded chunksは1だった。Paperのticket管理による自動解放を隠さず、false件数とloaded chunk上限を性能reportへ残す。
+本環境では`World#unloadChunk`が各処理直後にfalseを返したため、Paperのticket lifecycle観測値`immediateUnloadRejected`として2段階合計2,178件を記録した。これはproduction generatorの失敗件数ではない。一方、次tick開始時には対象chunkが残らず、取得直後を含むmaximum loaded chunksは1だった。この観測値とloaded chunk上限を性能reportへ残す。
 
 ## checksumとpure model
 
@@ -87,6 +87,6 @@ timeout、watchdog停止、OutOfMemoryErrorはなく、reportはPASS前にatomic
 
 通常Paper 4chunk smokeとPhase 4A Multiverse 4chunk create/restart smokeはPhase 4B1 review checksでも必須とする。production Java、production dependency、production plugin metadataはversion以外変更せず、Multiverse API、NMS、reflectionを追加しない。
 
-## Phase 4B2への持ち越し
+## Phase 4B2での利用
 
-最終コード監査、release candidate version、最終operator文書、配布package、fresh repositoryでの最終smoke、license決定はPhase 4B2へ持ち越す。0.6.0-alpha.1は大規模検証済みalphaでありrelease candidateではない。
+このgoldenを変更せず、version `1.0.0-rc.1`の最終コード監査、再現可能JAR/package、package JAR smoke、commit済みtracked sourceのclean-roomでA1/A2/B1を再実行した。ライセンス決定とstable昇格はPhase 5へ分離する。

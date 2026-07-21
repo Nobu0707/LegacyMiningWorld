@@ -6,6 +6,7 @@ import importlib.util
 import struct
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).with_name("inspect-region-headers.py")
@@ -57,6 +58,38 @@ class RegionHeaderToolTest(unittest.TestCase):
             path.write_bytes(header)
             with self.assertRaises(MODULE.RegionHeaderError):
                 MODULE.parse_region_file(path)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "r.00.0.mca").write_bytes(bytes(4096))
+            with self.assertRaises(MODULE.RegionHeaderError):
+                MODULE.inspect_directory(root)
+
+    def test_rejects_location_beyond_file_without_integer_overflow(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "r.0.0.mca"
+            header = bytearray(4096)
+            struct.pack_into(">I", header, 0, (0xFFFFFF << 8) | 0xFF)
+            path.write_bytes(header)
+            with self.assertRaises(MODULE.RegionHeaderError):
+                MODULE.parse_region_file(path)
+
+    def test_each_region_is_parsed_once_and_duplicate_chunks_fail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            first = root / "r.0.0.mca"
+            second = root / "r.1.0.mca"
+            write_region(first, [])
+            write_region(second, [])
+            with mock.patch.object(
+                    MODULE, "parse_region_file", wraps=MODULE.parse_region_file) as parser:
+                MODULE.inspect_directory(root)
+                self.assertEqual(2, parser.call_count)
+
+            with mock.patch.object(
+                    MODULE, "parse_region_file", return_value={(0, 0)}):
+                with self.assertRaises(MODULE.RegionHeaderError):
+                    MODULE.inspect_directory(root)
 
     def test_expected_grid_missing_and_canonical_sort(self) -> None:
         expected = MODULE.expected_grid(-1, 0, -1, 0)

@@ -8,6 +8,6 @@ record GridMetrics(
         int generatedBeforeScan,
         int newlyGenerated,
         int missingExisting,
-        int unloadFailures,
+        int immediateUnloadRejected,
         int maximumLoadedChunks) {
 }

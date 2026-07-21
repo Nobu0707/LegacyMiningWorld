@@ -9,6 +9,7 @@ readonly CHECK_DIR="build/review-checks"
 readonly SMOKE_DIR="build/paper-smoke"
 readonly SMOKE_TIMEOUT_SECONDS=120
 readonly FIXED_WORLD_SEED=11652021
+readonly EXPECTED_RC_VERSION="1.0.0-rc.1"
 readonly FORCE_LOADED_CHUNKS="-1,-1;0,-1;-1,0;0,0"
 readonly REQUIRED_REVIEW_CHECKS=(
   git-diff-check.txt
@@ -21,6 +22,13 @@ readonly REQUIRED_REVIEW_CHECKS=(
   large-scale-model-tests.txt
   large-scale-verifier-tests.txt
   region-header-tool-tests.txt
+  production-code-audit.txt
+  compiler-audit.txt
+  dependency-audit.txt
+  reproducible-build.txt
+  final-jar-audit.txt
+  release-package.txt
+  normal-review-state.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -65,7 +73,8 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a gi
 cd "$repo_root"
 
 expected_version="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n 1)"
-[ -n "$expected_version" ] || die "legacyminingworld_version is not set"
+[ "$expected_version" = "$EXPECTED_RC_VERSION" ] \
+  || die "expected version $EXPECTED_RC_VERSION, found $expected_version"
 
 rm -rf "$CHECK_DIR"
 
@@ -231,7 +240,18 @@ copy_log ore-engine-tests.txt
 copy_log ore-adapter-tests.txt
 
 run_gradle_check multiverse-verifier-tests.txt multiverseVerifierTest
-run_gradle_check large-scale-verifier-tests.txt multiverseVerifierTest
+run_gradle_check large-scale-verifier-tests.txt largeScaleVerifierTest
+
+./scripts/run-final-audits.sh
+for audit_name in production-code-audit.txt compiler-audit.txt dependency-audit.txt \
+    reproducible-build.txt final-jar-audit.txt jar-contents.txt \
+    verifier-jar-contents.txt; do
+  [ -s "$CHECK_DIR/$audit_name" ] || die "final audit log missing: $audit_name"
+  cp "$CHECK_DIR/$audit_name" "$temp_dir/$audit_name"
+done
+while IFS= read -r -d '' retained_log; do
+  cp "$retained_log" "$CHECK_DIR/$(basename "$retained_log")"
+done < <(find "$temp_dir" -maxdepth 1 -type f -name '*.txt' -print0)
 
 {
   printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -406,6 +426,34 @@ copy_log verify-built-jar-version.txt
 } > "$temp_dir/release-artifacts.txt"
 copy_log release-artifacts.txt
 
+package_path="build/release/LegacyMiningWorld-${expected_version}-release.tar.gz"
+package_jar="build/release/LegacyMiningWorld-${expected_version}.jar"
+./scripts/make-release-package.sh > "$temp_dir/release-package-run-1.txt" 2>&1 \
+  || { cat "$temp_dir/release-package-run-1.txt" >&2; die "release package run 1 failed"; }
+cp "$package_path" "$temp_dir/release-package-run-1.tar.gz"
+cp "$package_jar" "$temp_dir/release-package-run-1.jar"
+tar -tzf "$package_path" > "$temp_dir/release-package-run-1.files"
+./scripts/make-release-package.sh > "$temp_dir/release-package-run-2.txt" 2>&1 \
+  || { cat "$temp_dir/release-package-run-2.txt" >&2; die "release package run 2 failed"; }
+cmp "$temp_dir/release-package-run-1.tar.gz" "$package_path" \
+  || die "release package differs between clean generation runs"
+cmp "$temp_dir/release-package-run-1.jar" "$package_jar" \
+  || die "packaged JAR differs between generation runs"
+tar -tzf "$package_path" > "$temp_dir/release-package-run-2.files"
+cmp "$temp_dir/release-package-run-1.files" "$temp_dir/release-package-run-2.files" \
+  || die "release package file list differs between runs"
+cmp "$built_jar" "$package_jar" || die "package JAR differs from tested build JAR"
+cp "$CHECK_DIR/release-package.txt" "$temp_dir/release-package.txt"
+{
+  printf 'release package bytes: %s\n' "$(stat -c '%s' "$package_path")"
+  printf 'second package SHA-256: %s\n' "$(sha256sum "$package_path" | awk '{print $1}')"
+  printf 'reproducible package equality: PASS\n'
+  printf 'reproducible packaged JAR equality: PASS\n'
+  printf 'reproducible file list equality: PASS\n'
+  printf 'reproducible extracted contents equality: PASS\n'
+} >> "$temp_dir/release-package.txt"
+copy_log release-package.txt
+
 [ -r "$PAPER_JAR" ] || die "missing local Paper JAR: $PAPER_JAR"
 [ -r "$EULA_FILE" ] || die "missing local EULA file: $EULA_FILE"
 [ -r "$GEOLOGY_ANCHOR_FILE" ] || die "missing fixed geology anchors: $GEOLOGY_ANCHOR_FILE"
@@ -501,7 +549,7 @@ rm -rf "$SMOKE_DIR"
 mkdir -p "$SMOKE_DIR/plugins"
 cp "$PAPER_JAR" "$SMOKE_DIR/paper.jar"
 cp "$EULA_FILE" "$SMOKE_DIR/eula.txt"
-cp "$built_jar" "$SMOKE_DIR/plugins/"
+cp "$package_jar" "$SMOKE_DIR/plugins/"
 mapfile -t smoke_plugins < <(find "$SMOKE_DIR/plugins" -maxdepth 1 -type f -name '*.jar' -printf '%f\n')
 [ "${#smoke_plugins[@]}" -eq 1 ] \
   || die "Paper smoke must contain only the LegacyMiningWorld JAR"
@@ -698,6 +746,7 @@ fi
   printf 'PASS: ore X/Z boundary pairs were observed.\n'
   printf 'PASS: required terrain, biome, bedrock, surface, and air markers were observed.\n'
   printf 'PASS: no generator-selection, command, server, or class-loading failure was found.\n'
+  printf 'package JAR smoke: PASS\n'
 } >> "$temp_dir/local-paper-smoke.txt"
 copy_log local-paper-smoke.txt
 
@@ -762,6 +811,18 @@ copy_log ore-world-smoke.txt
 ./scripts/run-multiverse-integration.sh
 ./scripts/run-large-scale-validation.sh
 
+{
+  printf 'executed UTC: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'version: %s\n' "$expected_version"
+  printf 'source content SHA-256: '
+  git ls-files -z --cached --others --exclude-standard \
+    | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}'
+  printf 'release JAR SHA-256: %s\n' "$(sha256sum "$built_jar" | awk '{print $1}')"
+  printf 'release package SHA-256: %s\n' "$(sha256sum "$package_path" | awk '{print $1}')"
+  printf 'PASS: normal review checks completed for this tracked source content.\n'
+} > "$temp_dir/normal-review-state.txt"
+copy_log normal-review-state.txt
+
 for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
   [ -f "$CHECK_DIR/$check_name" ] || die "missing required review check log: $check_name"
 done
@@ -794,6 +855,20 @@ grep -Fq 'PASS: Phase 3B fixed-seed ore world smoke completed successfully.' \
   || die "ore world smoke log does not contain its PASS marker"
 grep -Fq 'BUILD SUCCESSFUL' "$CHECK_DIR/multiverse-verifier-tests.txt" \
   || die "Multiverse verifier tests did not complete successfully"
+grep -Fq 'BUILD SUCCESSFUL' "$CHECK_DIR/large-scale-verifier-tests.txt" \
+  || die "large-scale verifier tests did not complete successfully"
+grep -Fq 'PASS: production code audit completed.' "$CHECK_DIR/production-code-audit.txt" \
+  || die "production audit PASS marker missing"
+grep -Fq 'PASS: strict compiler audit completed with -Werror.' "$CHECK_DIR/compiler-audit.txt" \
+  || die "compiler audit PASS marker missing"
+grep -Fq 'PASS: dependency audit completed.' "$CHECK_DIR/dependency-audit.txt" \
+  || die "dependency audit PASS marker missing"
+grep -Fq 'PASS: two independent clean JAR builds are reproducible.' \
+  "$CHECK_DIR/reproducible-build.txt" || die "reproducible build PASS marker missing"
+grep -Fq 'reproducible package equality: PASS' "$CHECK_DIR/release-package.txt" \
+  || die "reproducible package PASS marker missing"
+grep -Fq 'package JAR smoke: PASS' "$CHECK_DIR/local-paper-smoke.txt" \
+  || die "package JAR Paper smoke PASS marker missing"
 grep -Fq 'PASS: fixed four-chunk full-height live world scan completed successfully.' \
   "$CHECK_DIR/multiverse-world-scan.txt" \
   || die "Multiverse live world scan log does not contain its PASS marker"

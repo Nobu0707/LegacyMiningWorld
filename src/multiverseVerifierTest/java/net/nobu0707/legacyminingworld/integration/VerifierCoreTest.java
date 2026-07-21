@@ -92,7 +92,7 @@ class VerifierCoreTest {
         assertTrue(descriptor.contains("name: LegacyMiningWorldMultiverseVerifier"));
         assertTrue(descriptor.contains("version: "
                 + System.getProperty("legacyminingworld.version")));
-        assertTrue(descriptor.contains("description: Test-only Phase 4A and Phase 4B1 verifier"));
+        assertTrue(descriptor.contains("description: Test-only Phase 4A/4B1/4B2 verifier"));
         assertTrue(descriptor.contains("  - LegacyMiningWorld"));
         assertTrue(descriptor.contains("  - Multiverse-Core"));
         assertThrows(ClassNotFoundException.class, () -> Class.forName(

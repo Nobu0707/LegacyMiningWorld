@@ -4,7 +4,7 @@ main: net.nobu0707.legacyminingworld.integration.MultiverseIntegrationVerifierPl
 api-version: '26.1.2'
 load: POSTWORLD
 authors: [nobu0707]
-description: Test-only Phase 4A and Phase 4B1 verifier; never ship this JAR as a release artifact
+description: Test-only Phase 4A/4B1/4B2 verifier; never ship this JAR as a release artifact
 depend:
   - LegacyMiningWorld
   - Multiverse-Core

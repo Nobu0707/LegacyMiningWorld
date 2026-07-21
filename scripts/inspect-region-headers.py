@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only Anvil location-table inspection for Phase 4B1."""
+"""Read-only Anvil location-table inspection for Phase 4B1/4B2."""
 
 from __future__ import annotations
 
@@ -8,7 +8,8 @@ import re
 import struct
 from pathlib import Path
 
-REGION_NAME = re.compile(r"r\.(-?\d+)\.(-?\d+)\.mca")
+REGION_COORDINATE = r"(?:0|-?[1-9]\d*)"
+REGION_NAME = re.compile(rf"r\.({REGION_COORDINATE})\.({REGION_COORDINATE})\.mca")
 SECTOR_BYTES = 4096
 
 
@@ -55,10 +56,11 @@ def inspect_directory(region_directory: Path) -> set[tuple[int, int]]:
             raise RegionHeaderError(f"invalid region filename: {path.name}")
         if REGION_NAME.fullmatch(path.name) is None:
             continue
-        overlap = chunks.intersection(parse_region_file(path))
+        parsed = parse_region_file(path)
+        overlap = chunks.intersection(parsed)
         if overlap:
             raise RegionHeaderError(f"duplicate chunk coordinates: {sorted(overlap)}")
-        chunks.update(parse_region_file(path))
+        chunks.update(parsed)
     return chunks
 
 

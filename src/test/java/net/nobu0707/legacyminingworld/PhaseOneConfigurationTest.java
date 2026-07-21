@@ -45,7 +45,7 @@ class PhaseOneConfigurationTest {
     void versionPropertyIsPresent() {
         String version = System.getProperty("legacyminingworld.version", "");
         assertFalse(version.isBlank());
-        assertTrue(version.equals("0.6.0-alpha.1"));
+        assertTrue(version.equals("1.0.0-rc.1"));
     }
 
     @Test
