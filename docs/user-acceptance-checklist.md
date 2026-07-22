@@ -1,6 +1,6 @@
-# LegacyMiningWorld 1.0.0 ユーザー受入チェックリスト
+# LegacyMiningWorld 1.0.1 ユーザー受入チェックリスト
 
-この文書は、ユーザーが実際のゲームクライアントと運用環境でtechnical stable `1.0.0`を確認するための未記入チェックリストです。Codexは以下の項目を実施・確認・記入していません。実施者が事実に基づいてチェックし、FAILや懸念をnotesへ記録してください。
+この文書は、ユーザーが実際のゲームクライアントと運用環境でMIT License（SPDX: `MIT`）のtechnical stable `1.0.1`を確認するための未記入チェックリストです。Copyright (c) 2026 nobu0707。Codexは以下の項目を実施・確認・記入していません。実施者が事実に基づいてチェックし、FAILや懸念をnotesへ記録してください。
 
 この文書はrepository docsとして提供し、stable release packageには含めません。
 
@@ -12,10 +12,10 @@
 - [ ] Paper 26.1.2 build 69であることを確認した
 - [ ] `java -version`でJava 25であることを確認した
 - [ ] `plugins/`から旧LegacyMiningWorld JARと重複JARを除去した
-- [ ] production JAR `LegacyMiningWorld-1.0.0.jar`を配置した
-- [ ] `LegacyMiningWorld-MultiverseVerifier-1.0.0.jar`を配置していない
+- [ ] production JAR `LegacyMiningWorld-1.0.1.jar`を配置した
+- [ ] `LegacyMiningWorld-MultiverseVerifier-1.0.1.jar`を配置していない
 - [ ] Multiverse-Coreを使う場合、version 5.7.2であることを確認した
-- [ ] 起動ログでLegacyMiningWorld version `1.0.0`のload/enable成功を確認した
+- [ ] 起動ログでLegacyMiningWorld version `1.0.1`のload/enable成功を確認した
 - [ ] 起動ログに`SEVERE`、class loading error、`generator not found`がないことを確認した
 
 ## B. world作成

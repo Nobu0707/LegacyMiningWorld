@@ -6,12 +6,15 @@
 - main class: net.nobu0707.legacyminingworld.LegacyMiningWorldPlugin
 - 対象: PaperMC 26.1.2 build 69 / Paper API 26.1.2.build.69-stable
 - Java: toolchain・releaseともに25
-- current version: 1.0.0（technical stable、release candidateではない）
-- completed phase: Phase 5
+- current version: 1.0.1（MIT License適用済みtechnical stable、release candidateではない）
+- completed phase: Phase 6
 - RC baseline: 3c30291b5c570d1c53a261ef8f5d9715b42512ff / chore: prepare 1.0.0 release candidate
 - Phase 5 commit subject: chore: promote LegacyMiningWorld 1.0.0
-- public release status: not published
-- license: not selected。private/internal deploymentだけを対象とする
+- Phase 6 baseline: 2c487560b0d862df0af0c452c3686a7ca72fade3 / chore: promote LegacyMiningWorld 1.0.0
+- Phase 6 commit subject: chore: apply MIT license for 1.0.1
+- public distribution ready: yes under MIT terms
+- external publication status: not published
+- license: MIT License / SPDX MIT / Copyright (c) 2026 nobu0707
 - production source lineage baseline: 71b5deb151041f5c9e85a84447a454dbb5ab68a4 / test: validate large-scale generation
 - Phase 4A baseline: db23362efe8265a8e491bf5432b4d461bb3e5667 / feat: populate legacy ores
 - Phase 4A commit subject: test: verify multiverse integration
@@ -29,30 +32,21 @@
 
 commit前:
 
-    ./gradlew --no-daemon clean test
-    ./gradlew --no-daemon geologyEngineTest
-    ./gradlew --no-daemon geologyAdapterTest
-    ./gradlew --no-daemon oreEngineTest
-    ./gradlew --no-daemon oreAdapterTest
-    ./gradlew --no-daemon multiverseVerifierTest
-    ./gradlew --no-daemon largeScaleVerifierTest
-    ./gradlew --no-daemon largeScaleModelTest
-    ./gradlew --no-daemon build
-    ./gradlew --no-daemon multiverseVerifierJar
-    python3 -m unittest scripts/test_inspect_region_headers.py
-    ./scripts/run-large-scale-validation.sh
-    ./scripts/run-review-checks.sh
+    ./gradlew --no-daemon clean build -x test
+    ./gradlew --no-daemon multiverseVerifierJar -x test
+    ./scripts/run-license-audit.sh
+    ./scripts/compare-stable-patch-payload.sh
     ./scripts/make-release-package.sh
-    ./scripts/compare-rc-stable-payload.sh
+    ./scripts/run-public-license-status-scan.sh
+    ./scripts/run-license-release-checks.sh
 
-全項目PASS後、必要な追跡ファイルだけを`chore: promote LegacyMiningWorld 1.0.0`でcommitする。
+Phase 6ではproduction Javaと生成ロジックが不変なのでtest、Paper/Multiverse smoke、large-scale、clean-room全回帰を実行しない。全軽量項目PASS後、必要な追跡ファイルだけを`chore: apply MIT license for 1.0.1`でcommitする。
 
 commit後:
 
-    ./scripts/run-clean-room-validation.sh
-    ./scripts/write-final-stable-release.sh
-    ./scripts/make-review-archive.sh "chore: promote LegacyMiningWorld 1.0.0"
-    ./scripts/make-full-review-archive.sh "chore: promote LegacyMiningWorld 1.0.0"
+    ./scripts/write-final-public-ready-release.sh
+    ./scripts/make-review-archive.sh "chore: apply MIT license for 1.0.1"
+    ./scripts/make-full-review-archive.sh "chore: apply MIT license for 1.0.1"
 
 ## runtime仕様
 
@@ -156,7 +150,7 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 
 同じplugin version・world seed・target chunkに対する決定性、1.16.5設定・seed式・分布・形状、target ownershipを保証する。Vanilla heightmap早期終了、全decoration pipeline、noise地形、洞窟等は再現しないため、Minecraft 1.16.5の同一seedとblock座標完全一致は保証しない。
 
-通常Paper回帰smokeはstable packageから展開したLegacyMiningWorld-1.0.0.jarだけを使い、4 chunksをforce-loadする。地形、geology 10/10、ore 14/14、Y11主要5鉱石、X/Z pair、fatal scan、source Paper/EULA hash、Multiverse copied NOを維持する。これとは別のMultiverse smokeでtest-only verifierを使い、実worldの4chunk全高を完全走査する。4chunk完全走査を1,089chunk走査とは報告しない。
+Phase 5の通常Paper回帰smokeはstable packageから展開したLegacyMiningWorld-1.0.0.jarだけを使い、4 chunksをforce-loadした。地形、geology 10/10、ore 14/14、Y11主要5鉱石、X/Z pair、fatal scan、source Paper/EULA hash、Multiverse copied NOを確認済み。Phase 6ではJava不変のため再実行していない。4chunk完全走査を1,089chunk走査とは報告しない。
 
 ## review重点
 
@@ -171,7 +165,7 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 - `mv generators list`、Multiverse command create、first/second boot、autoload、UUID/checksum一致。
 - Y=5..67 golden、4chunk全高禁止Material 0、PLAINS 4,096点。
 - large-scale spec、1,089 unique chunks、107,053,056 blocks/run、A1/A2/B1 report、region header、performance、default world vanilla。
-- stable archive前に`chore: promote LegacyMiningWorld 1.0.0`でコミットし、作成後もworking tree clean。
+- Phase 6 archive前に`chore: apply MIT license for 1.0.1`でコミットし、作成後もworking tree clean。
 
 ## Phase 4B2 release candidate
 
@@ -203,4 +197,17 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 - `docs/user-acceptance-checklist.md`は作成済みだが、Codexはゲームクライアント・実運用環境で実施も記入もしていない。
 - tagは作成せず、push、GitHub Release、Maven publish、外部uploadも実施しない。
 - review archiveへstable JAR、stable package、verifier JAR、server/world、RC artifact本体を含めない。artifactのfilename/SHA/contentsはREADME、stable release文書、stable review logへ記録する。
-- optional Phase 6はlicense選択、public distribution terms、Git tag、GitHub Release、署名・外部公開であり、ユーザーの明示承認なしに実施しない。
+- Phase 5時点ではoptional Phase 6をlicense選択と外部公開の後続作業としていた。Phase 6ではMIT/public-ready packageまでを実施し、Git tag、GitHub Release、署名・外部公開は行わない。
+
+## Phase 6 MIT License / 1.0.1 public-ready patch
+
+- version `1.0.1`。MIT License / SPDX `MIT` / Copyright (c) 2026 nobu0707。root `LICENSE`が正本。
+- baselineは`2c487560b0d862df0af0c452c3686a7ca72fade3`。`src/main/java/**`、production `plugin.yml` template、Paper dependency、generator/seed/salt/placement、anchors、large-scale specはbyte不変。
+- production/verifier JARへ`META-INF/LICENSE`、release packageへ`LICENSE`を1件収録し、root LICENSEとbyte一致させる。
+- production class payloadは1.0.0とIDENTICAL、JAR内`plugin.yml`はversion-only。world generation結果は不変。
+- config/data migrationとworld再作成は不要。既存chunkへのretro-generationは行わず、旧Vanilla 1.16.5とのblock座標完全一致は保証しない。
+- Phase 6ではtest除外build、payload比較、JAR/license/package監査、package再現可能性だけを実行する。unit test、Paper/Multiverse smoke、1,089chunk検証、clean-room全回帰は実行しない。
+- production JARは`LegacyMiningWorld-1.0.1.jar`、test-only verifierは`LegacyMiningWorld-MultiverseVerifier-1.0.1.jar`。verifierをserver/packageへ導入しない。
+- release packageは`LegacyMiningWorld-1.0.1-release.tar.gz`で、production JAR、README.txt、RELEASE_NOTES.md、SHA256SUMS.txt、LICENSEだけを含む。
+- production JAR SHA-256は`cb63c1d31fbc95fe9da262e900a3072687c9b4d66c28d11cdcf01cfa4cba65f4`、verifierは`90641e05b211c3e90eb10152463e6afa0da866ad52f0a766b7436141ad16fea1`、packageは`e17ba6ee75f6e3bdcc0a114b1f641956f7925597dc5ae9f4cb0f85900ce02c8b`、LICENSEは`8b7be028c1e6da4e34647010a229cc8b85c715c13cbe03959ccf8bbbd5e4e2d8`。
+- public-distribution-readyはYES、externally publishedはNO。tag、push、GitHub Release、Maven/Modrinth/Hangar等への投稿、外部uploadは実施しない。

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.1 — 2026-07-22
+
+### License and packaging
+
+- MIT License（SPDX: `MIT`、Copyright (c) 2026 nobu0707）を採用し、root `LICENSE`を追加しました。
+- production JARとtest-only verifier JARへ`META-INF/LICENSE`を追加し、release packageへ`LICENSE`を追加しました。
+- packageから`LICENSE-NOT-SELECTED.txt`を除去し、public distributionをMIT条件で可能にしました。
+
+### Compatibility
+
+- `1.0.0`からproduction Java、production `plugin.yml`テンプレート、Paper dependency、world-generation設定を変更していません。
+- production class payloadは`1.0.0`と同一で、生成済み`plugin.yml`の差はversionだけです。
+- config/data migrationとworld再作成は不要で、world-generation結果とno retro-generation仕様は不変です。
+
+### Validation
+
+- testを除外したproduction/verifier build、class payload比較、JAR content検査、license/package監査、package二重生成による再現可能性確認だけを実施しました。
+- unit test、Paper smoke、Multiverse smoke、1,089chunk検証、clean-room全回帰は実施していません。production Javaと生成ロジックに変更がないためです。
+- tag、push、GitHub Release、Maven publishing、外部uploadは実施していません。
+
 ## 1.0.0 — 2026-07-22
 
 ### Stable

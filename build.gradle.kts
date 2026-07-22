@@ -231,9 +231,15 @@ tasks.register<Jar>("multiverseVerifierJar") {
     archiveBaseName = "LegacyMiningWorld-MultiverseVerifier"
     archiveVersion = project.version.toString()
     from(multiverseVerifier.output)
+    from(rootProject.file("LICENSE")) {
+        into("META-INF")
+    }
 }
 
 tasks.jar {
     archiveBaseName = "LegacyMiningWorld"
     archiveVersion = project.version.toString()
+    from(rootProject.file("LICENSE")) {
+        into("META-INF")
+    }
 }

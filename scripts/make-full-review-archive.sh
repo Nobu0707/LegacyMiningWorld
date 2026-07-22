@@ -3,67 +3,22 @@ set -euo pipefail
 
 readonly PROJECT_NAME="legacyminingworld"
 readonly PROJECT_DISPLAY_NAME="LegacyMiningWorld"
-readonly EXPECTED_VERSION="1.0.0"
-readonly EXPECTED_SUBJECT="chore: promote LegacyMiningWorld 1.0.0"
+readonly EXPECTED_VERSION="1.0.1"
+readonly EXPECTED_SUBJECT="chore: apply MIT license for 1.0.1"
 readonly REQUIRED_REVIEW_CHECKS=(
   git-diff-check.txt
-  gradle-test.txt
-  geology-engine-tests.txt
-  geology-adapter-tests.txt
-  ore-engine-tests.txt
-  ore-adapter-tests.txt
-  multiverse-verifier-tests.txt
-  large-scale-model-tests.txt
-  large-scale-verifier-tests.txt
-  region-header-tool-tests.txt
-  production-code-audit.txt
-  compiler-audit.txt
-  dependency-audit.txt
-  reproducible-build.txt
-  final-jar-audit.txt
-  stable-source-equivalence.txt
-  rc-stable-payload-comparison.txt
-  release-package.txt
-  stable-release-package.txt
-  stable-version-scan.txt
-  stable-acceptance.txt
-  normal-review-state.txt
-  clean-room-validation.txt
-  stable-clean-room-validation.txt
-  final-stable-release.txt
+  license-source-equivalence.txt
+  stable-patch-payload-comparison.txt
   gradle-build.txt
-  local-paper-smoke.txt
-  geology-world-smoke.txt
-  ore-world-smoke.txt
   release-artifacts.txt
   jar-plugin-yml.txt
   jar-contents.txt
   verifier-jar-contents.txt
   verify-built-jar-version.txt
-  multiverse-jar-inspection.txt
-  multiverse-first-boot.txt
-  multiverse-second-boot.txt
-  multiverse-world-scan.txt
-  multiverse-integration-smoke.txt
-  large-scale-a1-boot.txt
-  large-scale-a2-boot.txt
-  large-scale-b1-boot.txt
-  large-scale-world-a1.txt
-  large-scale-world-a2.txt
-  large-scale-world-b1.txt
-  large-scale-determinism.txt
-  large-scale-distribution.txt
-  large-scale-performance.txt
-  large-scale-region-headers.txt
-  large-scale-validation.txt
-  large-scale-expected-chunks.txt
-  large-scale-a1-chunks.txt
-  large-scale-a2-chunks.txt
-  large-scale-b1-chunks.txt
-  large-scale-expected-ore-heights.txt
-  large-scale-a1-ore-heights.txt
-  large-scale-a2-ore-heights.txt
-  large-scale-b1-ore-heights.txt
+  license-audit.txt
+  license-package-reproducibility.txt
+  public-license-status-scan.txt
+  final-public-ready-release.txt
 )
 
 usage() {
@@ -121,28 +76,18 @@ git diff --quiet || die "tracked working tree changes must be committed"
 git diff --cached --quiet || die "index changes must be committed"
 working_status="$(git status --short)"
 [ -z "$working_status" ] || die "full review archive requires a clean working tree: $working_status"
-current_source_sha="$(git ls-files -z | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
-normal_state="build/review-checks/normal-review-state.txt"
-if [ ! -s "$normal_state" ] \
-    || ! grep -Fxq "version: $version" "$normal_state" \
-    || ! grep -Fxq "source content SHA-256: $current_source_sha" "$normal_state" \
-    || ! grep -Fq 'PASS: normal review checks completed' "$normal_state"; then
-  ./scripts/run-review-checks.sh
-fi
-clean_state="build/review-checks/stable-clean-room-validation.txt"
-if [ ! -s "$clean_state" ] \
-    || ! grep -Fxq "worktree HEAD: $head_sha" "$clean_state" \
-    || ! grep -Fxq "version: $version" "$clean_state" \
-    || ! grep -Fq 'PASS: committed tracked source clean-room validation completed.' "$clean_state"; then
-  ./scripts/run-clean-room-validation.sh
-fi
-./scripts/write-final-stable-release.sh
+[ -z "$(git diff 2c487560b0d862df0af0c452c3686a7ca72fade3 -- src/main/java)" ] \
+  || die "production Java differs from the 1.0.0 baseline"
+./scripts/write-final-public-ready-release.sh
 
 for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
   [ -f "build/review-checks/$check_name" ] || die "missing review check log: $check_name"
 done
 grep -Fxq "version: $version" build/review-checks/jar-plugin-yml.txt \
   || die "built plugin.yml version does not match gradle.properties"
+grep -Fq 'PASS: public-ready 1.0.1 release validation completed.' \
+  build/review-checks/final-public-ready-release.txt \
+  || die "final public-ready summary is not PASS"
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 archive_name="${PROJECT_NAME}-full-review-${head_short}-${timestamp}.tar.gz"
@@ -196,7 +141,7 @@ fi
 } > "$archive_stage/meta/dependency-summary.txt"
 
 {
-  printf 'Review check logs copied for the exact normal-review source digest and clean-room HEAD.\n\n'
+  printf 'Phase 6 lightweight check logs copied for the committed 1.0.1 HEAD.\n\n'
   find build/review-checks -maxdepth 1 -type f -name '*.txt' -printf '%f\n' | sort
 } > "$archive_stage/checks/review-check-files.txt"
 while IFS= read -r -d '' check_log; do
@@ -205,7 +150,7 @@ done < <(find build/review-checks -maxdepth 1 -type f -name '*.txt' -print0 | so
 
 if command -v rg >/dev/null 2>&1; then
   rg -n \
-    -e '1\.0\.0|stable-source-equivalence|rc-stable-payload|reproducible|preserveFileTimestamps|reproducibleFileOrder|clean-room|git worktree|release package|SHA256SUMS|LICENSE-NOT-SELECTED|strict compile|dependency audit|largeScaleVerifierTest|immediateUnloadRejected|final-stable-release' \
+    -e '1\.0\.1|MIT License|SPDX|stable-patch-payload|META-INF/LICENSE|reproducible|preserveFileTimestamps|reproducibleFileOrder|release package|SHA256SUMS|public-distribution-ready|final-public-ready-release' \
     -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LegacyUndergroundPopulator|LegacyOreApplicator|LegacyOreMaterialAdapter|LegacyOreBlockAccess|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|LegacyOre|COAL_ORE|IRON_ORE|GOLD_ORE|REDSTONE_ORE|DIAMOND_ORE|LAPIS_ORE|DepthAverage|baseline|spread|stableSalt|featureSeed|UNDERGROUND_ORES|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|ore-smoke-anchors|Y11|Multiverse|multiverse-core-5\.7\.2|mv generators|mv create|LegacyMiningWorldMultiverseVerifier|ChunkSnapshot|world UUID|autoload|worlds\.yml|multiverse-smoke|forbidden material|Y5\.\.67|large-scale|grid|1089|107053056|generate|existing|forward|reverse|fullChecksum|region header|Maximum resident set size|runTaskTimer|unloadChunk|isChunkGenerated|verify-vanilla-world|large-scale-grid\.properties' \
     "$archive_stage/repo" > "$archive_stage/checks/rg-review-signals.txt" || true
   rg -n -i \

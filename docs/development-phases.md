@@ -110,13 +110,15 @@ Multiverse-CoreはPhase 3Bでも依存・コピー・実行していない。
 
 ユーザー受入チェックリストは人間がゲームクライアントと運用環境で実施するために作成したもので、Codexはチェックを実行・記入していない。長時間運用確認もPhase 5の自動技術受入には含めない。
 
-## Optional Phase 6 — licenseとpublic publication（未実装）
+## Phase 6 — MIT Licenseと1.0.1配布物（完了、version 1.0.1）
 
-- ライセンス選択
-- public distribution termsの確定
-- Git tag
-- GitHub Release
-- 公開用checksums、必要に応じた署名
-- Maven publishingやその他のexternal publication
+- MIT License（SPDX: `MIT`、Copyright (c) 2026 nobu0707）を正式適用
+- root、production/verifier JAR、release packageへ同一LICENSEを収録
+- `1.0.0`のproduction Javaとclass payloadを変更せず、`plugin.yml`はversion-only
+- config/data migrationなし、world再作成不要、生成結果とno retro-generation仕様は不変
+- testを除外したbuild、payload比較、license/package監査、package再現可能性だけを実施
+- unit test、Paper/Multiverse smoke、1,089chunk検証、clean-room全回帰は未実施
+- public-distribution-readyはYES、externally publishedはNO
+- Git tag、push、GitHub Release、Maven/Modrinth/Hangar等への投稿、外部uploadは未実施
 
-Phase 6はユーザーによる明示承認が必要であり、Phase 5では実施しない。
+Phase 6の軽量検証はproduction Javaと生成ロジックが`1.0.0`から不変であることを前提とする。Java差分が生じた場合は別Phaseとして扱う。
