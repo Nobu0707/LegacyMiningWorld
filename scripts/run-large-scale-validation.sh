@@ -9,6 +9,12 @@ readonly RUN_A_DIR="build/large-scale-smoke-a"
 readonly RUN_B_DIR="build/large-scale-smoke-b"
 readonly WORLD_NAME="legacy_mining_scale"
 readonly FIXED_SEED="11652021"
+readonly EXPECTED_STABLE_VERSION="1.0.0"
+readonly EXPECTED_FULL_CHECKSUM="-56844145234233245"
+readonly EXPECTED_Y5_CHECKSUM="-7581040318536063180"
+readonly EXPECTED_CHUNK_REPORT_SHA="e5e26ff1bdac20270d314098728c418ed5faf50501d08e913cf39bacc1b14e27"
+readonly EXPECTED_HISTOGRAM_SHA="961eebd1e9d4443e1a30134fa43c4a706bd29d5dff8667953aab1da85bd9e55c"
+readonly EXPECTED_PURE_CHUNKS_SHA="5facaf32cf760ce463b4bcde25529cae5febd672f507e5d41df6c4de6daac575"
 readonly EXPECTED_VERSION="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n 1)"
 readonly BUILD_RELEASE_JAR="build/libs/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
 readonly RELEASE_JAR="build/release/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
@@ -27,6 +33,9 @@ die() {
   printf 'error: %s\n' "$*" >&2
   exit 1
 }
+
+[ "$EXPECTED_VERSION" = "$EXPECTED_STABLE_VERSION" ] \
+  || die "expected stable version $EXPECTED_STABLE_VERSION, found $EXPECTED_VERSION"
 
 cleanup() {
   exec 9>&- 2>/dev/null || true
@@ -372,9 +381,20 @@ expected_counts="$(sed -n 's/^y5_67MaterialCounts=//p' "$expected_dir/expected-s
 live_counts="$(sed -n 's/^y5_67MaterialCounts=//p' "$CHECK_DIR/large-scale-a1-summary.txt")"
 [ "$expected_checksum" = "$live_checksum" ] || die "pure/live checksum differs"
 [ "$expected_counts" = "$live_counts" ] || die "pure/live Material totals differ"
+[ "$live_checksum" = "$EXPECTED_Y5_CHECKSUM" ] \
+  || die "stable Y=5..67 checksum differs from the RC golden: $live_checksum"
 cp "$expected_dir/expected-chunks.txt" "$CHECK_DIR/large-scale-expected-chunks.txt"
 cp "$expected_dir/expected-ore-height-histogram.txt" \
   "$CHECK_DIR/large-scale-expected-ore-heights.txt"
+chunk_report_sha="$(sha256sum "$CHECK_DIR/large-scale-a1-chunks.txt" | awk '{print $1}')"
+histogram_sha="$(sha256sum "$CHECK_DIR/large-scale-a1-ore-heights.txt" | awk '{print $1}')"
+pure_chunks_sha="$(sha256sum "$CHECK_DIR/large-scale-expected-chunks.txt" | awk '{print $1}')"
+[ "$chunk_report_sha" = "$EXPECTED_CHUNK_REPORT_SHA" ] \
+  || die "deterministic chunk report SHA differs from the RC golden"
+[ "$histogram_sha" = "$EXPECTED_HISTOGRAM_SHA" ] \
+  || die "ore histogram SHA differs from the RC golden"
+[ "$pure_chunks_sha" = "$EXPECTED_PURE_CHUNKS_SHA" ] \
+  || die "pure expected chunks SHA differs from the RC golden"
 rm -f "$CHECK_DIR/large-scale-expected-y5.tmp.txt" "$CHECK_DIR/large-scale-a1-y5.tmp.txt" \
   "$CHECK_DIR/large-scale-expected-y5-heights.tmp.txt" \
   "$CHECK_DIR/large-scale-a1-y5-heights.tmp.txt"
@@ -391,8 +411,9 @@ b1_uid="$(extract_marker_value "$CHECK_DIR/large-scale-b1-boot.txt" 'LMW_GRID_PA
   printf 'A1=A2-UUID=PASS\nA1!=B1-UUID=PASS\n'
   printf 'A1/A2-reports=PASS\nA1/B1-reports=PASS\nforward/reverse=PASS\n'
   printf 'pure/live-y5_67=PASS\nchecksum=%s\n' "$live_checksum"
-  printf 'chunkReportSha256=%s\n' "$(sha256sum "$CHECK_DIR/large-scale-a1-chunks.txt" | awk '{print $1}')"
-  printf 'histogramSha256=%s\n' "$(sha256sum "$CHECK_DIR/large-scale-a1-ore-heights.txt" | awk '{print $1}')"
+  printf 'chunkReportSha256=%s\n' "$chunk_report_sha"
+  printf 'histogramSha256=%s\n' "$histogram_sha"
+  printf 'pureExpectedChunksSha256=%s\n' "$pure_chunks_sha"
   printf 'PASS: clean generation, restart, and reverse generation are deterministic.\n'
 } > "$CHECK_DIR/large-scale-determinism.txt"
 
@@ -436,6 +457,16 @@ b1_uid="$(extract_marker_value "$CHECK_DIR/large-scale-b1-boot.txt" 'LMW_GRID_PA
   || die "Multiverse source changed"
 
 full_checksum="$(sed -n 's/^fullChecksum=//p' "$CHECK_DIR/large-scale-a1-summary.txt")"
+forbidden_count="$(sed -n 's/^forbidden=//p' "$CHECK_DIR/large-scale-a1-summary.txt")"
+unknown_non_air="$(sed -n 's/^unknownNonAir=//p' "$CHECK_DIR/large-scale-a1-summary.txt")"
+biome_name="$(sed -n 's/^biome=//p' "$CHECK_DIR/large-scale-a1-summary.txt")"
+biome_checks="$(sed -n 's/^biomeChecks=//p' "$CHECK_DIR/large-scale-a1-summary.txt")"
+[ "$full_checksum" = "$EXPECTED_FULL_CHECKSUM" ] \
+  || die "stable full checksum differs from the RC golden: $full_checksum"
+[ "$forbidden_count" = "0" ] || die "forbidden Material count is $forbidden_count"
+[ "$unknown_non_air" = "0" ] || die "unknown non-AIR count is $unknown_non_air"
+[ "$biome_name" = "PLAINS" ] || die "unexpected biome result: $biome_name"
+[ "$biome_checks" = "1115136" ] || die "unexpected biome check count: $biome_checks"
 {
   printf 'executed-utc=%s\nversion=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$EXPECTED_VERSION"
   printf 'paper-sha256=%s\nmultiverse-sha256=%s\nrelease-sha256=%s\nverifier-sha256=%s\n' \
@@ -446,10 +477,12 @@ full_checksum="$(sed -n 's/^fullChecksum=//p' "$CHECK_DIR/large-scale-a1-summary
     "$a1_uid" "$a2_uid" "$b1_uid"
   printf 'A1=A2-UUID=PASS\nA1!=B1-UUID=PASS\nA1A2Report=PASS\nA1B1Report=PASS\n'
   printf 'pureLiveY5_67=PASS\nforwardReverse=PASS\nexistingModeMissing=0\n'
-  printf 'forbidden=0\nunknownNonAir=0\nbiome=1115136 PLAINS\nregionTargetMissing=0\n'
+  printf 'forbidden=%s\nunknownNonAir=%s\nbiome=%s %s\nregionTargetMissing=0\n' \
+    "$forbidden_count" "$unknown_non_air" "$biome_checks" "$biome_name"
   printf 'fullChecksum=%s\ny5_67Checksum=%s\n' "$full_checksum" "$live_checksum"
   printf 'distribution=large-scale-distribution.txt PASS\nperformance=large-scale-performance.txt PASS\n'
   printf 'defaultWorldVanilla=PASS\ntargetWorldLegacyGenerator=PASS\nsourceFilesUnchanged=PASS\n'
+  printf 'stableGoldenHashes=PASS\nstableVersion=PASS\n'
   printf 'PASS: Phase 4B1 large-scale validation completed.\n'
 } > "$CHECK_DIR/large-scale-validation.txt"
 

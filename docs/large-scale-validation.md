@@ -87,6 +87,10 @@ timeout、watchdog停止、OutOfMemoryErrorはなく、reportはPASS前にatomic
 
 通常Paper 4chunk smokeとPhase 4A Multiverse 4chunk create/restart smokeはPhase 4B1 review checksでも必須とする。production Java、production dependency、production plugin metadataはversion以外変更せず、Multiverse API、NMS、reflectionを追加しない。
 
-## Phase 4B2での利用
+## Phase 4B2とPhase 5での利用
 
-このgoldenを変更せず、version `1.0.0-rc.1`の最終コード監査、再現可能JAR/package、package JAR smoke、commit済みtracked sourceのclean-roomでA1/A2/B1を再実行した。ライセンス決定とstable昇格はPhase 5へ分離する。
+Phase 4B2ではこのgoldenを変更せず、version `1.0.0-rc.1`の最終コード監査、再現可能JAR/package、package JAR smoke、commit済みtracked sourceのclean-roomでA1/A2/B1を再実行した。
+
+Phase 5/version `1.0.0`でもproduction sourceとclass payloadをRCから変更せず、通常worktreeとcommitted stable HEADのclean-roomでA1/A2/B1を再実行した。full checksum `-56844145234233245`、Y=5..67 checksum `-7581040318536063180`、deterministic chunk report、ore histogram、Material count、forbidden 0、unknown non-AIR 0、PLAINS 1,115,136件、target missing 0はすべて維持した。stable package JARを使うPaper smokeもPASSした。
+
+technical stableの成果物、再現可能性、RC payload同一性、ライセンスと公開状態は[stable release情報](stable-release.md)を参照する。ライセンスは未選択で、公開配布はPhase 5に含めない。

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly EXPECTED_VERSION="1.0.0-rc.1"
-readonly EXPECTED_SUBJECT="chore: prepare 1.0.0 release candidate"
+readonly EXPECTED_VERSION="1.0.0"
+readonly EXPECTED_SUBJECT="chore: promote LegacyMiningWorld 1.0.0"
 readonly PAPER_SOURCE="server/paper-26.1.2-69.jar"
 readonly EULA_SOURCE="server/eula.txt"
 readonly MULTIVERSE_SOURCE="server/plugins/multiverse-core-5.7.2.jar"
@@ -25,9 +25,11 @@ version="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n
 head_sha="$(git rev-parse HEAD)"
 head_subject="$(git log -1 --pretty=%s)"
 [ "$head_subject" = "$EXPECTED_SUBJECT" ] \
-  || die "clean-room requires committed Phase 4B2 HEAD; found: $head_subject"
+  || die "clean-room requires committed Phase 5 stable HEAD; found: $head_subject"
 git diff --quiet || die "tracked working tree modifications must be committed"
 git diff --cached --quiet || die "index modifications must be committed"
+main_status="$(git status --short)"
+[ -z "$main_status" ] || die "main working tree must be clean: $main_status"
 
 for source in "$PAPER_SOURCE" "$EULA_SOURCE" "$MULTIVERSE_SOURCE"; do
   [ -r "$source" ] || die "missing clean-room input: $source"
@@ -41,6 +43,38 @@ done
 main_jar_sha="$(sha256sum "$main_jar" | awk '{print $1}')"
 main_verifier_sha="$(sha256sum "$main_verifier" | awk '{print $1}')"
 main_package_sha="$(sha256sum "$main_package" | awk '{print $1}')"
+main_check_dir="build/review-checks"
+for required_log in normal-review-state.txt production-code-audit.txt \
+    compiler-audit.txt dependency-audit.txt reproducible-build.txt \
+    final-jar-audit.txt stable-source-equivalence.txt \
+    rc-stable-payload-comparison.txt release-package.txt \
+    stable-release-package.txt stable-version-scan.txt stable-acceptance.txt \
+    local-paper-smoke.txt multiverse-integration-smoke.txt \
+    large-scale-validation.txt; do
+  [ -s "$main_check_dir/$required_log" ] \
+    || die "missing main stable review log: $required_log"
+done
+current_source_sha="$(git ls-files -z | LC_ALL=C sort -z \
+  | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
+grep -Fxq "version: $version" "$main_check_dir/normal-review-state.txt" \
+  || die "main normal-review state has a stale version"
+grep -Fxq "source content SHA-256: $current_source_sha" \
+  "$main_check_dir/normal-review-state.txt" \
+  || die "main normal-review state has stale source content"
+main_full_checksum="$(sed -n 's/^fullChecksum=//p' \
+  "$main_check_dir/large-scale-validation.txt" | tail -n 1)"
+main_y5_checksum="$(sed -n 's/^y5_67Checksum=//p' \
+  "$main_check_dir/large-scale-validation.txt" | tail -n 1)"
+[ "$main_full_checksum" = "-56844145234233245" ] \
+  || die "main full checksum is not the stable golden"
+[ "$main_y5_checksum" = "-7581040318536063180" ] \
+  || die "main Y=5..67 checksum is not the stable golden"
+grep -Fq 'forbidden=0' "$main_check_dir/large-scale-validation.txt" \
+  || die "main forbidden count is not zero"
+grep -Fq 'unknownNonAir=0' "$main_check_dir/large-scale-validation.txt" \
+  || die "main unknown non-AIR count is not zero"
+grep -Fq 'biome=1115136 PLAINS' "$main_check_dir/large-scale-validation.txt" \
+  || die "main biome golden is missing"
 paper_sha="$(sha256sum "$PAPER_SOURCE" | awk '{print $1}')"
 eula_sha="$(sha256sum "$EULA_SOURCE" | awk '{print $1}')"
 multiverse_sha="$(sha256sum "$MULTIVERSE_SOURCE" | awk '{print $1}')"
@@ -49,12 +83,11 @@ tracked_count="$(git ls-files | wc -l)"
 clean_parent="$(mktemp -d "${TMPDIR:-/tmp}/legacyminingworld-clean-room.XXXXXX")"
 clean_root="$clean_parent/worktree"
 clean_log="$clean_parent/clean-room-execution.txt"
-summary_temp="$clean_parent/clean-room-validation.txt"
+summary_temp="$clean_parent/stable-clean-room-validation.txt"
 worktree_added=0
 cleanup() {
   if [ "$worktree_added" -eq 1 ]; then
     git worktree remove --force "$clean_root" >/dev/null 2>&1 || true
-    git worktree prune >/dev/null 2>&1 || true
   fi
   rm -rf "$clean_parent"
 }
@@ -95,7 +128,6 @@ run_clean gradle-build ./gradlew --no-daemon build
 run_clean verifier-jar ./gradlew --no-daemon multiverseVerifierJar
 run_clean region-header-tests python3 -m unittest scripts/test_inspect_region_headers.py
 run_clean review-checks ./scripts/run-review-checks.sh
-run_clean release-package ./scripts/make-release-package.sh
 
 if (
   cd "$clean_root"
@@ -120,7 +152,9 @@ clean_package_sha="$(sha256sum "$clean_package" | awk '{print $1}')"
 check_dir="$clean_root/build/review-checks"
 for required_log in \
     production-code-audit.txt compiler-audit.txt dependency-audit.txt \
-    reproducible-build.txt final-jar-audit.txt release-package.txt \
+    reproducible-build.txt final-jar-audit.txt stable-source-equivalence.txt \
+    rc-stable-payload-comparison.txt release-package.txt stable-release-package.txt \
+    stable-version-scan.txt stable-acceptance.txt normal-review-state.txt \
     local-paper-smoke.txt multiverse-integration-smoke.txt \
     large-scale-validation.txt; do
   [ -s "$check_dir/$required_log" ] || die "clean review log missing: $required_log"
@@ -131,10 +165,39 @@ grep -Fq 'PASS: dependency audit completed.' "$check_dir/dependency-audit.txt"
 grep -Fq 'PASS: two independent clean JAR builds are reproducible.' \
   "$check_dir/reproducible-build.txt"
 grep -Fq 'PASS: release package generated and self-checked.' "$check_dir/release-package.txt"
+grep -Fq 'reproducible package equality: PASS' "$check_dir/stable-release-package.txt"
+grep -Fq 'PASS: stable source is equivalent to the RC baseline.' \
+  "$check_dir/stable-source-equivalence.txt"
+grep -Fq 'production functional payload: IDENTICAL' \
+  "$check_dir/rc-stable-payload-comparison.txt"
+grep -Fq 'PASS: stable current-version scan completed.' \
+  "$check_dir/stable-version-scan.txt"
+grep -Fq 'PASS: stable technical acceptance checks completed.' \
+  "$check_dir/stable-acceptance.txt"
 grep -Fq 'PASS: Phase 4A Multiverse integration smoke completed successfully.' \
   "$check_dir/multiverse-integration-smoke.txt"
 grep -Fq 'PASS: Phase 4B1 large-scale validation completed.' \
   "$check_dir/large-scale-validation.txt"
+grep -Fxq "version: $version" "$check_dir/normal-review-state.txt" \
+  || die "clean normal-review state has a stale version"
+grep -Fxq "source content SHA-256: $current_source_sha" \
+  "$check_dir/normal-review-state.txt" \
+  || die "clean normal-review state has stale source content"
+
+clean_full_checksum="$(sed -n 's/^fullChecksum=//p' \
+  "$check_dir/large-scale-validation.txt" | tail -n 1)"
+clean_y5_checksum="$(sed -n 's/^y5_67Checksum=//p' \
+  "$check_dir/large-scale-validation.txt" | tail -n 1)"
+[ "$clean_full_checksum" = "$main_full_checksum" ] \
+  || die "main/clean full checksum differs"
+[ "$clean_y5_checksum" = "$main_y5_checksum" ] \
+  || die "main/clean Y=5..67 checksum differs"
+grep -Fq 'forbidden=0' "$check_dir/large-scale-validation.txt" \
+  || die "clean forbidden count is not zero"
+grep -Fq 'unknownNonAir=0' "$check_dir/large-scale-validation.txt" \
+  || die "clean unknown non-AIR count is not zero"
+grep -Fq 'biome=1115136 PLAINS' "$check_dir/large-scale-validation.txt" \
+  || die "clean biome golden is missing"
 
 git -C "$clean_root" diff --quiet || die "clean worktree tracked files changed"
 git -C "$clean_root" diff --cached --quiet || die "clean worktree index changed"
@@ -159,14 +222,21 @@ review_log_count="$(find "$check_dir" -maxdepth 1 -type f -name '*.txt' | wc -l)
   printf 'Multiverse SHA: %s\n' "$multiverse_sha"
   printf 'all test tasks: PASS\n'
   printf 'normal Paper smoke: PASS\n'
+  printf 'package JAR Paper smoke: PASS\n'
   printf 'Multiverse 4A: PASS\n'
   printf 'large scale 4B1: PASS\n'
+  printf 'stable source equivalence: PASS\n'
+  printf 'RC/stable class payload: IDENTICAL\n'
   printf 'release JAR SHA: %s\n' "$clean_jar_sha"
   printf 'verifier JAR SHA: %s\n' "$clean_verifier_sha"
   printf 'release package SHA: %s\n' "$clean_package_sha"
   printf 'main/clean JAR equality: PASS\n'
   printf 'main/clean verifier equality: PASS\n'
   printf 'main/clean package equality: PASS\n'
+  printf 'main/clean full checksum equality: PASS (%s)\n' "$clean_full_checksum"
+  printf 'main/clean Y=5..67 checksum equality: PASS (%s)\n' "$clean_y5_checksum"
+  printf 'main/clean forbidden and unknown non-AIR: 0 PASS\n'
+  printf 'main/clean biome: 1115136 PLAINS PASS\n'
   printf 'review log count: %s\n' "$review_log_count"
   printf 'review log required list: PASS\n'
   printf 'recursion prevention: PASS\n'
@@ -176,10 +246,10 @@ review_log_count="$(find "$check_dir" -maxdepth 1 -type f -name '*.txt' | wc -l)
 } > "$summary_temp"
 
 mkdir -p "$repo_root/build/review-checks"
+cp "$summary_temp" "$repo_root/build/review-checks/stable-clean-room-validation.txt"
 cp "$summary_temp" "$repo_root/build/review-checks/clean-room-validation.txt"
 worktree_added=0
 git worktree remove --force "$clean_root"
-git worktree prune
 
-"$repo_root/scripts/write-final-release-candidate.sh"
+"$repo_root/scripts/write-final-stable-release.sh"
 printf 'Clean-room validation passed for %s.\n' "$head_sha"

@@ -6,10 +6,13 @@
 - main class: net.nobu0707.legacyminingworld.LegacyMiningWorldPlugin
 - 対象: PaperMC 26.1.2 build 69 / Paper API 26.1.2.build.69-stable
 - Java: toolchain・releaseともに25
-- current version: 1.0.0-rc.1（release candidate、stableではない）
-- completed phase: Phase 4B2
-- Phase 4B2 baseline: 71b5deb151041f5c9e85a84447a454dbb5ab68a4 / test: validate large-scale generation
-- Phase 4B2 commit subject: chore: prepare 1.0.0 release candidate
+- current version: 1.0.0（technical stable、release candidateではない）
+- completed phase: Phase 5
+- RC baseline: 3c30291b5c570d1c53a261ef8f5d9715b42512ff / chore: prepare 1.0.0 release candidate
+- Phase 5 commit subject: chore: promote LegacyMiningWorld 1.0.0
+- public release status: not published
+- license: not selected。private/internal deploymentだけを対象とする
+- production source lineage baseline: 71b5deb151041f5c9e85a84447a454dbb5ab68a4 / test: validate large-scale generation
 - Phase 4A baseline: db23362efe8265a8e491bf5432b4d461bb3e5667 / feat: populate legacy ores
 - Phase 4A commit subject: test: verify multiverse integration
 - Phase 4B1 baseline: 8eb27eaf0fe6644fceae6fef20d7419f550af862 / test: verify multiverse integration
@@ -22,7 +25,9 @@
 - ユーザー変更を消さず、Phase外の依存更新・機能追加・整形をしない。
 - mutable static state、共有Random、world/chunk cache、pending placement、scheduler、parallel streamを生成処理へ入れない。
 - server/、build/、調査物、JAR、logs、archivesをstageしない。
-- server/plugins/multiverse-core-5.7.2.jarはPhase 4Aのtest-only統合スモークだけで使用する。production dependency/release JARへ入れない。
+- server/plugins/multiverse-core-5.7.2.jarはtest-only統合検証だけで使用する。production dependency/release JARへ入れない。
+
+commit前:
 
     ./gradlew --no-daemon clean test
     ./gradlew --no-daemon geologyEngineTest
@@ -38,9 +43,16 @@
     ./scripts/run-large-scale-validation.sh
     ./scripts/run-review-checks.sh
     ./scripts/make-release-package.sh
+    ./scripts/compare-rc-stable-payload.sh
+
+全項目PASS後、必要な追跡ファイルだけを`chore: promote LegacyMiningWorld 1.0.0`でcommitする。
+
+commit後:
+
     ./scripts/run-clean-room-validation.sh
-    ./scripts/make-review-archive.sh "chore: prepare 1.0.0 release candidate"
-    ./scripts/make-full-review-archive.sh "chore: prepare 1.0.0 release candidate"
+    ./scripts/write-final-stable-release.sh
+    ./scripts/make-review-archive.sh "chore: promote LegacyMiningWorld 1.0.0"
+    ./scripts/make-full-review-archive.sh "chore: promote LegacyMiningWorld 1.0.0"
 
 ## runtime仕様
 
@@ -95,7 +107,7 @@ seed 11652021、target chunks (-1,-1),(0,-1),(-1,0),(0,0)。
 - Y11 anchors: COAL (-9,11,-10)、IRON (8,11,0)、GOLD (-9,11,14) と (2,11,13)、REDSTONE (-16,11,1) と (13,11,1)、DIAMOND (14,11,-4) と (13,11,-4)
 - LAPIS anchors: (-4,16,-10)、(-4,17,-10)
 - Paper smoke: Paper SHA-256 d30fae0c74092b10855f0412ca6b265c60301a013d34bc28a2a41bf5682dd80b、geology 10/10、ore 14/14、Y11 five materials、X_COAL、Z_IRON、terrain protection、fatal scan、source hashすべてPASS
-- 通常Paper回帰smoke plugins: LegacyMiningWorld-1.0.0-rc.1.jarだけ。Multiverse/verifier copied NO
+- 通常Paper回帰smoke plugins: LegacyMiningWorld-1.0.0.jarだけ。Multiverse/verifier copied NO
 
 anchorはruntime探索・自動更新禁止。release JARへ含めず、review archiveには含める。
 
@@ -104,7 +116,7 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 - Multiverse JAR: name `Multiverse-Core`、version 5.7.2、main `org.mvplugins.multiverse.core.MultiverseCore`、metadata `plugin.yml`、4,454,619 bytes、SHA-256 `574862aa3062af53957fe845de110a386f886445366836c8c63712e11d697400`。
 - 正確な列挙commandは`mv generators list`。`LegacyMiningWorld`を列挙した。
 - create commandは`mv create legacy_mining_mv_smoke normal --seed 11652021 --generator LegacyMiningWorld --no-adjust-spawn`。worldはNORMAL、seed 11652021、generator `LegacyMiningWorld`、autoload true。
-- test-only mainは`net.nobu0707.legacyminingworld.integration.MultiverseIntegrationVerifierPlugin`。source setは`multiverseVerifier`、現行JARは`LegacyMiningWorld-MultiverseVerifier-1.0.0-rc.1.jar`。Paper APIだけでcompileし、Multiverse API、world block write、NMS、reflection、networkを使わない。
+- test-only mainは`net.nobu0707.legacyminingworld.integration.MultiverseIntegrationVerifierPlugin`。source setは`multiverseVerifier`、現行JARは`LegacyMiningWorld-MultiverseVerifier-1.0.0.jar`。Paper APIだけでcompileし、Multiverse API、world block write、NMS、reflection、networkを使わない。
 - console commandは`lmwit verify legacy_mining_mv_smoke 11652021`。chunks `(-1,-1),(0,-1),(-1,0),(0,0)`を同期loadし、`ChunkSnapshot`でminY -64からmaxYExclusive 320まで393,216 blockを読む。
 - clean smoke例UUID `45092815-29d9-4568-b73c-45eac73d7480`はfirst/second bootで一致。clean directory再作成ごとにUUID自体は新規になる。
 - Bukkit永続spawn blockは`(0,71,0)`、generator fixed spawnは`(0.5,71.0,0.5)`。Paper公開API上の表現差として両方を検査する。
@@ -144,7 +156,7 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 
 同じplugin version・world seed・target chunkに対する決定性、1.16.5設定・seed式・分布・形状、target ownershipを保証する。Vanilla heightmap早期終了、全decoration pipeline、noise地形、洞窟等は再現しないため、Minecraft 1.16.5の同一seedとblock座標完全一致は保証しない。
 
-通常Paper回帰smokeはpackageから展開したLegacyMiningWorld-1.0.0-rc.1.jarだけを使い、4 chunksをforce-loadする。地形、geology 10/10、ore 14/14、Y11主要5鉱石、X/Z pair、fatal scan、source Paper/EULA hash、Multiverse copied NOを維持する。これとは別のPhase 4A Multiverse smokeでtest-only verifierを使い、実worldの4chunk全高を完全走査する。4chunk完全走査をPhase 4B1の1,089chunk走査とは報告しない。
+通常Paper回帰smokeはstable packageから展開したLegacyMiningWorld-1.0.0.jarだけを使い、4 chunksをforce-loadする。地形、geology 10/10、ore 14/14、Y11主要5鉱石、X/Z pair、fatal scan、source Paper/EULA hash、Multiverse copied NOを維持する。これとは別のMultiverse smokeでtest-only verifierを使い、実worldの4chunk全高を完全走査する。4chunk完全走査を1,089chunk走査とは報告しない。
 
 ## review重点
 
@@ -159,7 +171,7 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 - `mv generators list`、Multiverse command create、first/second boot、autoload、UUID/checksum一致。
 - Y=5..67 golden、4chunk全高禁止Material 0、PLAINS 4,096点。
 - large-scale spec、1,089 unique chunks、107,053,056 blocks/run、A1/A2/B1 report、region header、performance、default world vanilla。
-- archive前に`test: validate large-scale generation`でコミットし、作成後もworking tree clean。
+- stable archive前に`chore: promote LegacyMiningWorld 1.0.0`でコミットし、作成後もworking tree clean。
 
 ## Phase 4B2 release candidate
 
@@ -173,6 +185,22 @@ anchorはruntime探索・自動更新禁止。release JARへ含めず、review a
 - `multiverseVerifierTest`と`largeScaleVerifierTest`をtagで分離。unload metricは失敗ではなくPaper ticket lifecycle観測を表す`immediateUnloadRejected`へ改名。
 - region header parserは各fileを1回だけparseし、canonical filename、truncation、offset/count、large offset、duplicate chunkを検査。
 - full checksum `-56844145234233245`、Y=5..67 checksum `-7581040318536063180`、fixed distributions、forbidden 0、PLAINS 1,115,136件は不変。
-- ライセンス未選択、stableではない。tag/push/publishは行わない。
+- Phase 4B2時点ではライセンス未選択、stableではなく、tag/push/publishも行わなかった。
 
-次は利用者実機受入、長時間試験、ライセンス決定、version `1.0.0`とrelease notes確定、必要ならtag/publishを別承認で行うPhase 5 stable promotion。
+## Phase 5 stable promotion
+
+- version `1.0.0`。technical stableはYES、release candidateはNO。ライセンス未選択のためprivate/internal deployment専用で、public releaseではない。
+- RC baselineは`3c30291b5c570d1c53a261ef8f5d9715b42512ff` / `chore: prepare 1.0.0 release candidate`。
+- `src/main/java/**`、production `plugin.yml` template、Paper dependency、feature/seed/salts、anchors、large-scale specはbaselineとbyte-for-byte同一。functional production source changesは0。
+- RC/stable production class entry名とper-class SHAは同一。JAR内`plugin.yml`の差はversion `1.0.0-rc.1`→`1.0.0`だけで、production functional payloadはIDENTICAL。
+- compiler/dependency audit、全unit/integration/large-scale回帰、通常Paper、package JAR Paper、Multiverse create/restart、A1/A2/B1、stable version scanはPASS。
+- production JAR `LegacyMiningWorld-1.0.0.jar` SHA-256 `95fc4798970d28a8b095cc5fd276348dbb893c831d697e7efb8c9960d62e419f`。
+- test-only verifier `LegacyMiningWorld-MultiverseVerifier-1.0.0.jar` SHA-256 `e797a5e9ffc3bf496c20f88ea6da65468af78c291d8129e8515f9100cc8ae7e7`。server/release packageへ導入しない。
+- package `LegacyMiningWorld-1.0.0-release.tar.gz` SHA-256 `dd469700f986f8f2aa41ac8f846608a331245e3a95b181c54adcafb7823a29f4`。production JAR、README.txt、RELEASE_NOTES.md、SHA256SUMS.txt、LICENSE-NOT-SELECTED.txtだけを含む。
+- production/verifier JARとstable packageは2回生成でbyte一致。committed tracked sourceだけのstable clean-roomもmain側のJAR/verifier/package SHAと一致してPASS。
+- full checksum `-56844145234233245`、Y=5..67 checksum `-7581040318536063180`、forbidden 0、unknown non-AIR 0、PLAINS 1,115,136件を維持。
+- `docs/installation.md`と`docs/operations.md`はstable/RC upgrade向けに更新済み。`docs/stable-release.md`に最終matrixを記録する。
+- `docs/user-acceptance-checklist.md`は作成済みだが、Codexはゲームクライアント・実運用環境で実施も記入もしていない。
+- tagは作成せず、push、GitHub Release、Maven publish、外部uploadも実施しない。
+- review archiveへstable JAR、stable package、verifier JAR、server/world、RC artifact本体を含めない。artifactのfilename/SHA/contentsはREADME、stable release文書、stable review logへ記録する。
+- optional Phase 6はlicense選択、public distribution terms、Git tag、GitHub Release、署名・外部公開であり、ユーザーの明示承認なしに実施しない。

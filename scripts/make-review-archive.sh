@@ -4,6 +4,8 @@ set -euo pipefail
 readonly PROJECT_NAME="legacyminingworld"
 readonly PROJECT_DISPLAY_NAME="LegacyMiningWorld"
 readonly EMPTY_TREE_SHA="4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+readonly EXPECTED_VERSION="1.0.0"
+readonly EXPECTED_SUBJECT="chore: promote LegacyMiningWorld 1.0.0"
 readonly REQUIRED_VERSION_CHECK="build/review-checks/jar-plugin-yml.txt"
 readonly REQUIRED_REVIEW_CHECKS=(
   git-diff-check.txt
@@ -21,10 +23,16 @@ readonly REQUIRED_REVIEW_CHECKS=(
   dependency-audit.txt
   reproducible-build.txt
   final-jar-audit.txt
+  stable-source-equivalence.txt
+  rc-stable-payload-comparison.txt
   release-package.txt
+  stable-release-package.txt
+  stable-version-scan.txt
+  stable-acceptance.txt
   normal-review-state.txt
   clean-room-validation.txt
-  final-release-candidate.txt
+  stable-clean-room-validation.txt
+  final-stable-release.txt
   gradle-build.txt
   local-paper-smoke.txt
   geology-world-smoke.txt
@@ -110,13 +118,19 @@ expected_subject="${1:-}"
 head_sha="$(git rev-parse HEAD 2>/dev/null)" || die "HEAD does not exist; commit the phase first"
 head_short="$(git rev-parse --short HEAD)"
 head_subject="$(git log -1 --pretty=%s)"
+[ "$head_subject" = "$EXPECTED_SUBJECT" ] \
+  || die "expected HEAD subject '$EXPECTED_SUBJECT', found '$head_subject'"
 if [ -n "$expected_subject" ] && [[ "$head_subject" != *"$expected_subject"* ]]; then
   die "HEAD subject '$head_subject' does not contain '$expected_subject'"
 fi
 
 version="$(expected_version)"
 [ -n "$version" ] || die "legacyminingworld_version is not set"
-[ "$version" = "1.0.0-rc.1" ] || die "expected version 1.0.0-rc.1"
+[ "$version" = "$EXPECTED_VERSION" ] || die "expected version $EXPECTED_VERSION"
+git diff --quiet || die "tracked working tree changes must be committed"
+git diff --cached --quiet || die "index changes must be committed"
+working_status="$(git status --short)"
+[ -z "$working_status" ] || die "review archive requires a clean working tree: $working_status"
 current_source_sha="$(git ls-files -z | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')"
 normal_state="build/review-checks/normal-review-state.txt"
 if [ ! -s "$normal_state" ] \
@@ -125,14 +139,14 @@ if [ ! -s "$normal_state" ] \
     || ! grep -Fq 'PASS: normal review checks completed' "$normal_state"; then
   ./scripts/run-review-checks.sh
 fi
-clean_state="build/review-checks/clean-room-validation.txt"
+clean_state="build/review-checks/stable-clean-room-validation.txt"
 if [ ! -s "$clean_state" ] \
     || ! grep -Fxq "worktree HEAD: $head_sha" "$clean_state" \
     || ! grep -Fxq "version: $version" "$clean_state" \
     || ! grep -Fq 'PASS: committed tracked source clean-room validation completed.' "$clean_state"; then
   ./scripts/run-clean-room-validation.sh
 fi
-./scripts/write-final-release-candidate.sh
+./scripts/write-final-stable-release.sh
 
 [ -f "$REQUIRED_VERSION_CHECK" ] || die "missing required check log: $REQUIRED_VERSION_CHECK"
 for check_name in "${REQUIRED_REVIEW_CHECKS[@]}"; do
@@ -232,7 +246,7 @@ done < <(git ls-files -m -d -o --exclude-standard -z)
     rg -n --hidden \
       --glob '!.git/**' --glob '!build/**' --glob '!.gradle/**' --glob '!server/**' \
       --glob '!*.jar' --glob '!*.log' --glob '!*.tar.gz' --glob '!*.zip' \
-      -e '1\.0\.0-rc\.1|reproducible|preserveFileTimestamps|reproducibleFileOrder|clean-room|git worktree|release package|SHA256SUMS|LICENSE-NOT-SELECTED|strict compile|dependency audit|largeScaleVerifierTest|immediateUnloadRejected|final-release-candidate' \
+      -e '1\.0\.0|stable-source-equivalence|rc-stable-payload|reproducible|preserveFileTimestamps|reproducibleFileOrder|clean-room|git worktree|release package|SHA256SUMS|LICENSE-NOT-SELECTED|strict compile|dependency audit|largeScaleVerifierTest|immediateUnloadRejected|final-stable-release' \
       -e 'ChunkGenerator|ChunkData|BlockPopulator|populate\(|LegacyUndergroundPopulator|LegacyOreApplicator|LegacyOreMaterialAdapter|LegacyOreBlockAccess|LimitedRegion|isInRegion|getType|setType|getWorld|getChunkAt|getBlockAt|WorldInfo|BiomeProvider|WorldCreator|getDefaultWorldGenerator|getDefaultPopulators|getPopulators|WorldInitEvent|generateNoise|generateSurface|generateBedrock|getBaseHeight|getFixedSpawnLocation|Biome\.PLAINS|shouldGenerateNoise|shouldGenerateSurface|shouldGenerateCaves|shouldGenerateDecorations|shouldGenerateStructures|shouldGenerateMobs|Material\.BEDROCK|Material\.STONE|Material\.DIRT|Material\.GRASS_BLOCK|Material\.GRANITE|Material\.DIORITE|Material\.ANDESITE|CAVE_AIR|VOID_AIR|LegacyGeology|LegacyVein|LegacyOre|COAL_ORE|IRON_ORE|GOLD_ORE|REDSTONE_ORE|DIAMOND_ORE|LAPIS_ORE|DepthAverage|baseline|spread|stableSalt|featureSeed|UNDERGROUND_ORES|placement|decoration seed|feature seed|source chunk|target chunk|GRANITE|DIORITE|ANDESITE|GRAVEL|Random|seed|scheduler|async|ThreadLocal|geology-smoke-anchors|ore-smoke-anchors|Y11|Multiverse|multiverse-core-5\.7\.2|mv generators|mv create|LegacyMiningWorldMultiverseVerifier|ChunkSnapshot|world UUID|autoload|worlds\.yml|multiverse-smoke|forbidden material|Y5\.\.67|large-scale|grid|1089|107053056|generate|existing|forward|reverse|fullChecksum|region header|Maximum resident set size|runTaskTimer|unloadChunk|isChunkGenerated|verify-vanilla-world|large-scale-grid\.properties' \
       . || true
   else
@@ -250,6 +264,12 @@ done < <(find build/review-checks -maxdepth 1 -type f -name '*.txt' -print0 | so
 
 tar -C "$archive_stage" -czf "$repo_root/$archive_name" .
 cp "$repo_root/$archive_name" "$repo_root/$latest_name"
+
+if tar -tzf "$repo_root/$archive_name" \
+    | grep -E '(^|/)server/|(^|/)build/|\.jar$|\.class$|(^|/)worlds?/|LegacyMiningWorld-.*-release\.tar\.gz$' \
+      >/dev/null; then
+  die "review archive contains a forbidden runtime or release artifact"
+fi
 
 printf 'Created review archive: %s\n' "$archive_name"
 printf 'Updated latest archive: %s\n' "$latest_name"

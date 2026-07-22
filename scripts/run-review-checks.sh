@@ -9,7 +9,8 @@ readonly CHECK_DIR="build/review-checks"
 readonly SMOKE_DIR="build/paper-smoke"
 readonly SMOKE_TIMEOUT_SECONDS=120
 readonly FIXED_WORLD_SEED=11652021
-readonly EXPECTED_RC_VERSION="1.0.0-rc.1"
+readonly EXPECTED_STABLE_VERSION="1.0.0"
+readonly BASELINE_SHA="3c30291b5c570d1c53a261ef8f5d9715b42512ff"
 readonly FORCE_LOADED_CHUNKS="-1,-1;0,-1;-1,0;0,0"
 readonly REQUIRED_REVIEW_CHECKS=(
   git-diff-check.txt
@@ -27,7 +28,12 @@ readonly REQUIRED_REVIEW_CHECKS=(
   dependency-audit.txt
   reproducible-build.txt
   final-jar-audit.txt
+  stable-source-equivalence.txt
+  rc-stable-payload-comparison.txt
   release-package.txt
+  stable-release-package.txt
+  stable-version-scan.txt
+  stable-acceptance.txt
   normal-review-state.txt
   gradle-build.txt
   local-paper-smoke.txt
@@ -73,8 +79,8 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "not inside a gi
 cd "$repo_root"
 
 expected_version="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n 1)"
-[ "$expected_version" = "$EXPECTED_RC_VERSION" ] \
-  || die "expected version $EXPECTED_RC_VERSION, found $expected_version"
+[ "$expected_version" = "$EXPECTED_STABLE_VERSION" ] \
+  || die "expected version $EXPECTED_STABLE_VERSION, found $expected_version"
 
 rm -rf "$CHECK_DIR"
 
@@ -112,6 +118,21 @@ run_gradle_check() {
   fi
 }
 
+assert_nonzero_tests() {
+  local task_name="$1"
+  local results_directory="build/test-results/$task_name"
+  mapfile -t result_xmls < <(find "$results_directory" -maxdepth 1 -type f \
+    -name 'TEST-*.xml' -print 2>/dev/null | LC_ALL=C sort)
+  [ "${#result_xmls[@]}" -gt 0 ] \
+    || die "$task_name produced no JUnit XML result files"
+  local test_count
+  test_count="$(grep -hoE 'tests="[0-9]+"' "${result_xmls[@]}" \
+    | sed -E 's/tests="([0-9]+)"/\1/' \
+    | awk '{ total += $1 } END { print total + 0 }')"
+  [ "$test_count" -gt 0 ] || die "$task_name executed zero tests"
+  printf 'executed-test-count: %s PASS\n' "$test_count"
+}
+
 {
   git diff --check
   git diff --cached --check
@@ -120,6 +141,8 @@ run_gradle_check() {
 copy_log git-diff-check.txt
 
 run_gradle_check gradle-test.txt clean test
+assert_nonzero_tests test >> "$temp_dir/gradle-test.txt"
+copy_log gradle-test.txt
 
 {
   printf 'executed-at-utc: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -131,6 +154,7 @@ run_gradle_check gradle-test.txt clean test
   printf 'test-task: geologyEngineTest\n'
   printf 'test-filter: net.nobu0707.legacyminingworld.geology.* excluding geology-adapter tag\n\n'
   ./gradlew --no-daemon geologyEngineTest || exit 1
+  assert_nonzero_tests geologyEngineTest
   printf '\nPASS: Phase 2A geology engine tests completed successfully.\n'
 } > "$temp_dir/geology-engine-tests.txt" 2>&1 || {
   copy_log geology-engine-tests.txt
@@ -151,6 +175,7 @@ copy_log geology-engine-tests.txt
   printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'fixed-target-chunk: 0,0\n\n'
   ./gradlew --no-daemon geologyAdapterTest || exit 1
+  assert_nonzero_tests geologyAdapterTest
   printf '\nmapping-tests: PASS\n'
   printf 'replacement-order-tests: PASS\n'
   printf 'height-region-tests: PASS\n'
@@ -181,6 +206,7 @@ copy_log geology-adapter-tests.txt
   printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'fixed-target-chunk: 0,0\n\n'
   ./gradlew --no-daemon oreEngineTest || exit 1
+  assert_nonzero_tests oreEngineTest
   printf '\nfeature-settings: PASS\n'
   printf 'total-attempts: 52 PASS\n'
   printf 'stable-salts: 5..10 PASS\n'
@@ -217,6 +243,7 @@ copy_log ore-engine-tests.txt
   printf 'fixed-seed: %s\n' "$FIXED_WORLD_SEED"
   printf 'fixed-target-chunks: %s\n\n' "$FORCE_LOADED_CHUNKS"
   ./gradlew --no-daemon oreAdapterTest || exit 1
+  assert_nonzero_tests oreAdapterTest
   printf '\nmaterial-adapter: PASS\n'
   printf 'replacement: PASS\n'
   printf 'legacy-y-range: PASS 0..67\n'
@@ -240,15 +267,24 @@ copy_log ore-engine-tests.txt
 copy_log ore-adapter-tests.txt
 
 run_gradle_check multiverse-verifier-tests.txt multiverseVerifierTest
+assert_nonzero_tests multiverseVerifierTest >> "$temp_dir/multiverse-verifier-tests.txt"
+copy_log multiverse-verifier-tests.txt
 run_gradle_check large-scale-verifier-tests.txt largeScaleVerifierTest
+assert_nonzero_tests largeScaleVerifierTest >> "$temp_dir/large-scale-verifier-tests.txt"
+copy_log large-scale-verifier-tests.txt
 
 ./scripts/run-final-audits.sh
 for audit_name in production-code-audit.txt compiler-audit.txt dependency-audit.txt \
-    reproducible-build.txt final-jar-audit.txt jar-contents.txt \
+    reproducible-build.txt final-jar-audit.txt stable-source-equivalence.txt jar-contents.txt \
     verifier-jar-contents.txt; do
   [ -s "$CHECK_DIR/$audit_name" ] || die "final audit log missing: $audit_name"
   cp "$CHECK_DIR/$audit_name" "$temp_dir/$audit_name"
 done
+./scripts/compare-rc-stable-payload.sh
+[ -s "$CHECK_DIR/rc-stable-payload-comparison.txt" ] \
+  || die "RC/stable payload comparison log missing"
+cp "$CHECK_DIR/rc-stable-payload-comparison.txt" \
+  "$temp_dir/rc-stable-payload-comparison.txt"
 while IFS= read -r -d '' retained_log; do
   cp "$retained_log" "$CHECK_DIR/$(basename "$retained_log")"
 done < <(find "$temp_dir" -maxdepth 1 -type f -name '*.txt' -print0)
@@ -261,6 +297,7 @@ done < <(find "$temp_dir" -maxdepth 1 -type f -name '*.txt' -print0)
   printf 'spec: src/test/resources/large-scale-grid.properties\n'
   printf 'chunks: 1089\nblocks-y5-67: 17563392\n\n'
   ./gradlew --no-daemon largeScaleModelTest || exit 1
+  assert_nonzero_tests largeScaleModelTest
   printf '\nPASS: Phase 4B1 large-scale pure-model reports generated.\n'
 } > "$temp_dir/large-scale-model-tests.txt" 2>&1 || {
   copy_log large-scale-model-tests.txt
@@ -443,7 +480,7 @@ tar -tzf "$package_path" > "$temp_dir/release-package-run-2.files"
 cmp "$temp_dir/release-package-run-1.files" "$temp_dir/release-package-run-2.files" \
   || die "release package file list differs between runs"
 cmp "$built_jar" "$package_jar" || die "package JAR differs from tested build JAR"
-cp "$CHECK_DIR/release-package.txt" "$temp_dir/release-package.txt"
+cp "$CHECK_DIR/stable-release-package.txt" "$temp_dir/stable-release-package.txt"
 {
   printf 'release package bytes: %s\n' "$(stat -c '%s' "$package_path")"
   printf 'second package SHA-256: %s\n' "$(sha256sum "$package_path" | awk '{print $1}')"
@@ -451,7 +488,9 @@ cp "$CHECK_DIR/release-package.txt" "$temp_dir/release-package.txt"
   printf 'reproducible packaged JAR equality: PASS\n'
   printf 'reproducible file list equality: PASS\n'
   printf 'reproducible extracted contents equality: PASS\n'
-} >> "$temp_dir/release-package.txt"
+} >> "$temp_dir/stable-release-package.txt"
+cp "$temp_dir/stable-release-package.txt" "$temp_dir/release-package.txt"
+copy_log stable-release-package.txt
 copy_log release-package.txt
 
 [ -r "$PAPER_JAR" ] || die "missing local Paper JAR: $PAPER_JAR"
@@ -811,6 +850,57 @@ copy_log ore-world-smoke.txt
 ./scripts/run-multiverse-integration.sh
 ./scripts/run-large-scale-validation.sh
 
+full_checksum="$(sed -n 's/^fullChecksum=//p' "$CHECK_DIR/large-scale-validation.txt" | tail -n 1)"
+y5_checksum="$(sed -n 's/^y5_67Checksum=//p' "$CHECK_DIR/large-scale-validation.txt" | tail -n 1)"
+[ "$full_checksum" = "-56844145234233245" ] \
+  || die "stable full checksum mismatch: $full_checksum"
+[ "$y5_checksum" = "-7581040318536063180" ] \
+  || die "stable Y=5..67 checksum mismatch: $y5_checksum"
+grep -Fq 'forbidden=0' "$CHECK_DIR/large-scale-validation.txt" \
+  || die "stable large-scale forbidden count is not zero"
+grep -Fq 'unknownNonAir=0' "$CHECK_DIR/large-scale-validation.txt" \
+  || die "stable large-scale unknown non-AIR count is not zero"
+grep -Fq 'biome=1115136 PLAINS' "$CHECK_DIR/large-scale-validation.txt" \
+  || die "stable large-scale biome golden is missing"
+
+./scripts/run-stable-version-scan.sh
+[ -s "$CHECK_DIR/stable-version-scan.txt" ] || die "stable version scan log missing"
+cp "$CHECK_DIR/stable-version-scan.txt" "$temp_dir/stable-version-scan.txt"
+copy_log stable-version-scan.txt
+
+[ -s docs/user-acceptance-checklist.md ] \
+  || die "stable user acceptance checklist is missing"
+{
+  printf 'executed UTC: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'version: %s\n' "$expected_version"
+  printf 'baseline RC SHA: %s\n' "$BASELINE_SHA"
+  printf 'stable source equivalence: PASS\n'
+  printf 'RC/stable class payload identity: IDENTICAL\n'
+  printf 'plugin.yml version-only difference: PASS\n'
+  printf 'all regression test tasks and nonzero test counts: PASS\n'
+  printf 'normal Paper: PASS\n'
+  printf 'package JAR Paper: PASS\n'
+  printf 'Multiverse create: PASS\n'
+  printf 'Multiverse restart: PASS\n'
+  printf '1,089-chunk forward generation: PASS\n'
+  printf '1,089-chunk existing restart: PASS\n'
+  printf '1,089-chunk reverse clean generation: PASS\n'
+  printf 'full checksum: %s\n' "$full_checksum"
+  printf 'Y=5..67 checksum: %s\n' "$y5_checksum"
+  printf 'forbidden: 0\n'
+  printf 'unknown non-AIR: 0\n'
+  printf 'biome: 1115136 PLAINS PASS\n'
+  printf 'reproducible production and verifier JARs: PASS\n'
+  printf 'reproducible stable package: PASS\n'
+  printf 'stable current-version scan: PASS\n'
+  printf 'license selected: NO\n'
+  printf 'manual user checklist: CREATED / NOT EXECUTED BY CODEX\n'
+  printf 'stable technical acceptance: PASS\n'
+  printf 'public publication: NO\n'
+  printf 'PASS: stable technical acceptance checks completed.\n'
+} > "$temp_dir/stable-acceptance.txt"
+copy_log stable-acceptance.txt
+
 {
   printf 'executed UTC: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   printf 'version: %s\n' "$expected_version"
@@ -865,8 +955,17 @@ grep -Fq 'PASS: dependency audit completed.' "$CHECK_DIR/dependency-audit.txt" \
   || die "dependency audit PASS marker missing"
 grep -Fq 'PASS: two independent clean JAR builds are reproducible.' \
   "$CHECK_DIR/reproducible-build.txt" || die "reproducible build PASS marker missing"
+grep -Fq 'PASS: stable source is equivalent to the RC baseline.' \
+  "$CHECK_DIR/stable-source-equivalence.txt" \
+  || die "stable source equivalence PASS marker missing"
+grep -Fq 'production functional payload: IDENTICAL' \
+  "$CHECK_DIR/rc-stable-payload-comparison.txt" \
+  || die "RC/stable payload identity marker missing"
 grep -Fq 'reproducible package equality: PASS' "$CHECK_DIR/release-package.txt" \
   || die "reproducible package PASS marker missing"
+grep -Fq 'reproducible package equality: PASS' \
+  "$CHECK_DIR/stable-release-package.txt" \
+  || die "stable package reproducibility marker missing"
 grep -Fq 'package JAR smoke: PASS' "$CHECK_DIR/local-paper-smoke.txt" \
   || die "package JAR Paper smoke PASS marker missing"
 grep -Fq 'PASS: fixed four-chunk full-height live world scan completed successfully.' \
@@ -884,5 +983,9 @@ grep -Fq 'PASS: region header inspection tool tests completed.' \
 grep -Fq 'PASS: Phase 4B1 large-scale validation completed.' \
   "$CHECK_DIR/large-scale-validation.txt" \
   || die "large-scale validation log does not contain its PASS marker"
+grep -Fq 'PASS: stable current-version scan completed.' \
+  "$CHECK_DIR/stable-version-scan.txt" || die "stable version scan PASS marker missing"
+grep -Fq 'PASS: stable technical acceptance checks completed.' \
+  "$CHECK_DIR/stable-acceptance.txt" || die "stable acceptance PASS marker missing"
 
 printf 'Review checks passed. Logs: %s\n' "$CHECK_DIR"

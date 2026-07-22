@@ -116,4 +116,10 @@ Phase 3B/version 0.4.0で6鉱石をPaper runtimeへ接続した。単一`LegacyU
 
 固定seed `11652021`の4chunk combined countはCOAL 867、IRON 443、GOLD 48、REDSTONE 106、DIAMOND 17、LAPIS 19、checksumは`-7165395187979696007`。Y=11にはCOAL 6、IRON 5、GOLD 8、REDSTONE 7、DIAMOND 4が残り、14固定anchor、COAL X境界pair、IRON Z境界pairをPaper実block検査へ使用する。geology-only goldenと10既存anchorは不変である。
 
-このruntime接続も旧Vanilla同一seedとのblock座標完全一致を保証しない。Multiverse-Core統合と大量chunk完全走査はPhase 4で扱う。
+このruntime接続も旧Vanilla同一seedとのblock座標完全一致を保証しない。Phase 3B時点では、Multiverse-Core統合と大量chunk完全走査を後続のPhase 4へ分離した。
+
+## Phase 4完了とPhase 5 stable固定
+
+Multiverse-Core統合と大量chunk完全走査はPhase 4A/4B1で完了し、Phase 4B2でrelease candidateとして回帰した。
+
+version `1.0.0`では、6鉱石の設定、salts 5～10、uniform/depth-average分布、decorator乱数順、旧式形状、target ownership、replacement、14 anchors、combined/Y=11/large-scale goldenを`1.0.0-rc.1`から変更していない。RC/stable production class payload比較、stable/package Paper回帰、1,089chunk回帰、clean-roomはPASSした。同一seedの旧Vanilla 1.16.5とのblock座標完全一致を保証しない範囲も変更しない。詳細は[stable release情報](stable-release.md)を参照する。

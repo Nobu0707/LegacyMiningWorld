@@ -9,6 +9,7 @@ readonly SMOKE_DIR="build/multiverse-smoke"
 readonly WORLD_NAME="legacy_mining_mv_smoke"
 readonly FIXED_SEED="11652021"
 readonly TIMEOUT_SECONDS=180
+readonly EXPECTED_STABLE_VERSION="1.0.0"
 readonly EXPECTED_VERSION="$(sed -n 's/^legacyminingworld_version=//p' gradle.properties | tail -n 1)"
 readonly BUILD_RELEASE_JAR="build/libs/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
 readonly RELEASE_JAR="build/release/LegacyMiningWorld-${EXPECTED_VERSION}.jar"
@@ -21,6 +22,9 @@ die() {
   printf 'error: %s\n' "$*" >&2
   exit 1
 }
+
+[ "$EXPECTED_VERSION" = "$EXPECTED_STABLE_VERSION" ] \
+  || die "expected stable version $EXPECTED_STABLE_VERSION, found $EXPECTED_VERSION"
 
 cleanup() {
   exec 9>&- 2>/dev/null || true
@@ -323,6 +327,7 @@ second_checksum="$(printf '%s\n' "$second_summary" | sed -n 's/.* checksum=\([^ 
   printf 'restart-equality: PASS\n'
   printf 'worlds-yml: PASS\n'
   printf 'source-paper-eula-multiverse-unchanged: PASS\n'
+  printf 'stable-version: PASS\n'
   printf 'PASS: Phase 4A Multiverse integration smoke completed successfully.\n'
 } > "$CHECK_DIR/multiverse-integration-smoke.txt"
 

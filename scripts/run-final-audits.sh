@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly BASELINE_SHA="71b5deb151041f5c9e85a84447a454dbb5ab68a4"
-readonly EXPECTED_VERSION="1.0.0-rc.1"
+readonly BASELINE_SHA="3c30291b5c570d1c53a261ef8f5d9715b42512ff"
+readonly BASELINE_VERSION="1.0.0-rc.1"
+readonly EXPECTED_VERSION="1.0.0"
 readonly CHECK_DIRECTORY="build/review-checks"
 
 die() {
@@ -27,11 +28,107 @@ reproducible_log="$audit_temp/reproducible-build.txt"
 production_entries="$audit_temp/jar-contents.txt"
 verifier_entries="$audit_temp/verifier-jar-contents.txt"
 final_jar_log="$audit_temp/final-jar-audit.txt"
+source_equivalence_log="$audit_temp/stable-source-equivalence.txt"
 
 mapfile -t production_sources < <(rg --files src/main/java | sort)
 [ "${#production_sources[@]}" -gt 0 ] || die "no production Java source"
 git diff --quiet "$BASELINE_SHA" -- src/main/java \
-  || die "production Java differs from the Phase 4B1 baseline"
+  || die "production Java differs from the 1.0.0-rc.1 baseline"
+
+git cat-file -e "$BASELINE_SHA^{commit}" \
+  || die "stable source baseline is unavailable: $BASELINE_SHA"
+baseline_version="$(git show "$BASELINE_SHA:gradle.properties" \
+  | sed -n 's/^legacyminingworld_version=//p' | tail -n 1)"
+[ "$baseline_version" = "$BASELINE_VERSION" ] \
+  || die "baseline version mismatch: $baseline_version"
+
+git ls-tree -r --name-only "$BASELINE_SHA" -- src/main/java \
+  | LC_ALL=C sort > "$audit_temp/baseline-production-files.txt"
+find src/main/java -type f -print \
+  | LC_ALL=C sort > "$audit_temp/current-production-files.txt"
+cmp "$audit_temp/baseline-production-files.txt" \
+  "$audit_temp/current-production-files.txt" \
+  || die "production Java file names differ from the RC baseline"
+
+: > "$audit_temp/baseline-production-sha256.txt"
+: > "$audit_temp/current-production-sha256.txt"
+while IFS= read -r source_path; do
+  git show "$BASELINE_SHA:$source_path" | sha256sum \
+    | awk -v path="$source_path" '{print $1 "  " path}' \
+    >> "$audit_temp/baseline-production-sha256.txt"
+  sha256sum "$source_path" >> "$audit_temp/current-production-sha256.txt"
+done < "$audit_temp/baseline-production-files.txt"
+cmp "$audit_temp/baseline-production-sha256.txt" \
+  "$audit_temp/current-production-sha256.txt" \
+  || die "production Java content hashes differ from the RC baseline"
+
+git ls-tree -r --name-only "$BASELINE_SHA" -- src/main/resources \
+  | LC_ALL=C sort > "$audit_temp/baseline-production-resources.txt"
+find src/main/resources -type f -print \
+  | LC_ALL=C sort > "$audit_temp/current-production-resources.txt"
+cmp "$audit_temp/baseline-production-resources.txt" \
+  "$audit_temp/current-production-resources.txt" \
+  || die "production resource file names differ from the RC baseline"
+: > "$audit_temp/baseline-production-resource-sha256.txt"
+: > "$audit_temp/current-production-resource-sha256.txt"
+while IFS= read -r resource_path; do
+  git show "$BASELINE_SHA:$resource_path" | sha256sum \
+    | awk -v path="$resource_path" '{print $1 "  " path}' \
+    >> "$audit_temp/baseline-production-resource-sha256.txt"
+  sha256sum "$resource_path" >> "$audit_temp/current-production-resource-sha256.txt"
+done < "$audit_temp/baseline-production-resources.txt"
+cmp "$audit_temp/baseline-production-resource-sha256.txt" \
+  "$audit_temp/current-production-resource-sha256.txt" \
+  || die "production resource content hashes differ from the RC baseline"
+
+readonly IMMUTABLE_STABLE_PATHS=(
+  src/main/resources/plugin.yml
+  src/multiverseVerifier/resources/plugin.yml
+  build.gradle.kts
+  settings.gradle.kts
+  src/test/resources/geology-smoke-anchors.tsv
+  src/test/resources/ore-smoke-anchors.tsv
+  src/test/resources/large-scale-grid.properties
+)
+for immutable_path in "${IMMUTABLE_STABLE_PATHS[@]}"; do
+  git diff --quiet "$BASELINE_SHA" -- "$immutable_path" \
+    || die "stable-immutable path differs from RC baseline: $immutable_path"
+done
+git show "$BASELINE_SHA:gradle.properties" \
+  | sed 's/^legacyminingworld_version=.*/legacyminingworld_version=__VERSION__/' \
+  > "$audit_temp/baseline-gradle-normalized.properties"
+sed 's/^legacyminingworld_version=.*/legacyminingworld_version=__VERSION__/' \
+  gradle.properties > "$audit_temp/current-gradle-normalized.properties"
+cmp "$audit_temp/baseline-gradle-normalized.properties" \
+  "$audit_temp/current-gradle-normalized.properties" \
+  || die "gradle.properties differs by more than the stable version"
+
+baseline_source_hash="$(sha256sum "$audit_temp/baseline-production-sha256.txt" | awk '{print $1}')"
+current_source_hash="$(sha256sum "$audit_temp/current-production-sha256.txt" | awk '{print $1}')"
+{
+  printf 'executed UTC: %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'baseline SHA: %s\n' "$BASELINE_SHA"
+  printf 'baseline version: %s\n' "$BASELINE_VERSION"
+  printf 'current HEAD: %s\n' "$(git rev-parse HEAD)"
+  printf 'current version: %s\n' "$version"
+  printf 'baseline production Java content SHA-256: %s\n' "$baseline_source_hash"
+  printf 'current production Java content SHA-256: %s\n' "$current_source_hash"
+  printf 'current comparison source: working tree\n'
+  printf 'production Java file count: %d\n' "${#production_sources[@]}"
+  printf 'production Java file names: PASS\n'
+  printf 'production Java per-file SHA-256: PASS\n'
+  printf 'production Java diff: 0 PASS\n'
+  printf 'production resource file names and SHA-256: PASS\n'
+  printf 'production plugin.yml template diff: 0 PASS\n'
+  printf 'verifier plugin.yml template diff: 0 PASS\n'
+  printf 'Paper dependency and production build definition diff: 0 PASS\n'
+  printf 'world-generation settings, seeds, and salts diff: 0 PASS\n'
+  printf 'geology and ore anchors diff: 0 PASS\n'
+  printf 'large-scale spec diff: 0 PASS\n'
+  printf 'gradle.properties version-only difference: PASS\n'
+  printf 'stable promotion changes: metadata/docs/tests/scripts only\n'
+  printf 'PASS: stable source is equivalent to the RC baseline.\n'
+} > "$source_equivalence_log"
 
 if rg -n \
     -e 'java\.lang\.reflect|Class\.forName|org\.bukkit\.craftbukkit|net\.minecraft' \
@@ -77,7 +174,9 @@ fi
   printf '  %s\n' "${production_sources[@]}"
   printf '  src/main/resources/plugin.yml\n  build.gradle.kts\n  gradle.properties\n  settings.gradle.kts\n'
   printf 'production Java file count: %d\n' "${#production_sources[@]}"
-  printf 'production Java baseline equality: PASS\n'
+  printf 'production Java baseline equality to 3c30291: PASS\n'
+  printf 'functional source changes: 0\n'
+  printf 'stable promotion changes: metadata/docs/tests/scripts only\n'
   printf 'public API: PASS (Paper API compileOnly 26.1.2.build.69-stable)\n'
   printf 'deprecated API: PASS (strict compiler and signature scan)\n'
   printf 'thread safety: PASS (immutable services/method-local state; mutable static scan 0)\n'
@@ -225,6 +324,7 @@ mkdir -p "$CHECK_DIRECTORY"
 for audit_log in \
     "$production_audit_log" "$compiler_log" "$dependency_log" \
     "$reproducible_log" "$production_entries" "$verifier_entries" \
+    "$source_equivalence_log" \
     "$final_jar_log"; do
   cp "$audit_log" "$CHECK_DIRECTORY/$(basename "$audit_log")"
 done

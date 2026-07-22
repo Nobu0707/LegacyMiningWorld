@@ -97,9 +97,26 @@ Multiverse-CoreはPhase 3Bでも依存・コピー・実行していない。
 - CHANGELOG、導入、運用、release candidate、README、引き継ぎ文書の最終化
 - release candidate化。ライセンスは未選択で、stable/tag/publishは未実施
 
-## Phase 5 — stable promotion（候補、未実装）
+## Phase 5 — stable promotion（完了、version 1.0.0）
 
-- ユーザー実機受入試験と長時間運用確認
-- ライセンス決定
-- 最終version `1.0.0`とrelease notes確定
-- 必要に応じたtag/publish（別承認）
+- RC baseline `3c30291b5c570d1c53a261ef8f5d9715b42512ff`からproduction機能を変更せずtechnical stableへ昇格
+- production Java、production `plugin.yml` template、Paper依存、world-generation設定、anchors、large-scale specの同一性監査
+- RC/stable production class entry名・class bytes同一、生成済み`plugin.yml`はversionだけ変更
+- 全unit/integration/large-scale回帰、通常Paper、package JAR Paper、Multiverse create/restart
+- production/verifier JARとstable release packageの再現可能性検証
+- commit済みtracked sourceだけを使うstable clean-room validation
+- stable release package、stable release文書、未記入のユーザー受入チェックリスト
+- ライセンス未選択のprivate/internal technical stable。tag、push、publishは未実施
+
+ユーザー受入チェックリストは人間がゲームクライアントと運用環境で実施するために作成したもので、Codexはチェックを実行・記入していない。長時間運用確認もPhase 5の自動技術受入には含めない。
+
+## Optional Phase 6 — licenseとpublic publication（未実装）
+
+- ライセンス選択
+- public distribution termsの確定
+- Git tag
+- GitHub Release
+- 公開用checksums、必要に応じた署名
+- Maven publishingやその他のexternal publication
+
+Phase 6はユーザーによる明示承認が必要であり、Phase 5では実施しない。
